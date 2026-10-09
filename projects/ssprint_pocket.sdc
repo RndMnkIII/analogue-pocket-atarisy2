@@ -14,7 +14,14 @@
 #          general[1] = clk_vid       16.0 MHz  dot clock, exactly clk_sys / 6
 #          general[2] = clk_vid 90deg 16.0 MHz
 #          general[3]                 96.0 MHz  SDRAM pin clock, phase shifted
-#          general[4]                 unused
+#          general[4] = clk_ana       64.0 MHz  the Analogizer's (pocket_analogizer.sv):
+#                                               clk_sys * 2 / 3, the least that is
+#                                               four times the dot rate.  In this group:
+#                                               the pixel hand-over into it is a held
+#                                               register under a toggle, timed as the
+#                                               related-clock path it is.  With
+#                                               USE_ANALOGIZER = 0 it drives nothing and
+#                                               its name here matches nothing.
 #
 # clk_sys and the two pixel clocks stay in ONE group on purpose. The renderer
 # emits a pixel every sixth clk_sys cycle and the APF scaler samples it on

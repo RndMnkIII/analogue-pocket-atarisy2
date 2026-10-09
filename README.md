@@ -144,16 +144,46 @@ the "Analog Stick" entry makes it half or twice as reactive and reverses it
 if it steers the wrong way (the D-pad's direction was checked on hardware,
 the stick's has not been yet).
 
-The core settings menu has 13 entries: Reset Core, Screen Shape, Steering
-Speed, Analog Stick, Scanlines, Shadow Mask, and the games' switches --
-"Sprint: Difficulty", "Sprint: Obstacles" and "Sprint: Wrenches" (both
-Sprints share them), "APB: Difficulty", "Paperboy: Difficulty", "720:
-Difficulty" and "720: Bonus Life". That is all of it: every game is one coin
+The core settings menu has 16 entries, the most the Pocket shows: Reset
+Core, Screen Shape, Steering Speed, Analog Stick, the games' switches --
+"Sprint: Difficulty" and "Sprint: Obstacles" (both Sprints share them),
+"APB: Difficulty", "Paperboy: Difficulty", "720: Difficulty" and "720: Bonus
+Life" -- and six for the Analogizer (below). To make room for those, three
+entries earlier versions had are gone: **Scanlines** and **Shadow Mask**
+(the Pocket screen's effects, now always off) and **Sprint: Wrenches**
+(both Sprints now always need the factory 3 wrenches for an upgrade, MAME's
+default, which is the DIP register's 0). That is all of it: every game is one coin
 per play, so coinage, the coin multiplier and bonus coins are held at their
 factory settings and are not in the menu (APB starts and continues on one
 coin, with 199 continues), and neither is the self-test switch. "Screen
 Shape" is "Wide" (the cabinet's 4:3, or 3:4 rotated) or "Tall" (the Pocket's
 10:9). APB's screen is the vertical one, and the Pocket's scaler rotates it.
+
+## Analogizer
+
+The core supports RndMnkIII's [Analogizer](https://github.com/RndMnkIII/Analogizer)
+adapter: the board's own picture out of the VGA port, and SNAC controllers
+in place of the Pocket's. **The picture is the board's medium-resolution
+signal: 512x384 visible, 25.0 kHz lines, 60.1 Hz** -- a System 2 cabinet's
+monitor, which no 15 kHz television or PVM syncs to. What each video mode
+needs:
+
+| Analogizer Video | line rate | needs |
+|---|---|---|
+| RGBS, RGsB, YPbPr | 25.0 kHz | a medium-resolution (25 kHz) or tri-sync arcade monitor, a multisync broadcast monitor that takes 25 kHz, or a scaler that accepts it |
+| Scandoubler (and 25/50/75%, HQ2x) | 50.0 kHz, 832 lines at 60.1 Hz | a multisync PC CRT that reaches 50 kHz (most 1024x768-class ones do) |
+
+Y/C is not offered: no television takes 25 kHz lines. It is set up in the
+core's own menu (Analogizer, Analogizer Video, SNAC Adapter, SNAC
+Assignment, and H and V Position to centre the picture); with "Analogizer"
+off, the default, the core is unchanged. The picture is not rotated: APB
+comes out on its side, as its cabinet's monitor was mounted. Because the
+core declares a cartridge adapter, the Pocket powers the slot: take any game
+cartridge out first. SNAC pads replace the D-pad and buttons; steering,
+handlebars and the 720 stick then come from the pad's d-pad (the steering
+rate from "Steering Speed"), and a dock pad's analog stick is not involved.
+`docs/analogizer.md` has the modes, the controller assignments, and what has
+and has not been checked (the path is proven in simulation only).
 
 Settings and high scores (the board's EEPROM) are saved to
 `Saves/atarisy2/plasticbugs.atarisy2/<game>.sav`, one file per game.
@@ -167,8 +197,8 @@ Settings and high scores (the board's EEPROM) are saved to
 | `docs/verification.md` | what has been checked against MAME, how, with what result |
 | `rtl/` | the core: `ssprint_core.sv` (machine), `ssprint_main.sv` (T11 board), `t11/t11.sv` (the CPU), `slapstic.sv` (types 105-110, MAME's table selected by the image header), `ssprint_video.sv`, `ssprint_sound.sv`, `pokey.sv`, `sdram_ctrl.sv`, `clk_enables.sv`, `dpram_be.sv` / `sdpram.sv` |
 | `modules/` | vendored cores: T65 (6502) and the TMS5220 speech chip, both GHDL-converted VHDL, and jt51 (YM2151) -- `modules/VENDOR.md` |
-| `target/pocket/` | the Pocket top level `core_top.sv` and the controllers built for it: `steer_wheel.sv`, `ctrl_720.sv` |
-| `sim/` | Verilator benches: `run_t11.sh`, `run_video.sh`, `run_sound.sh`, `run_system.sh`, `lint.sh` |
+| `target/pocket/` | the Pocket top level `core_top.sv` and the controllers built for it: `steer_wheel.sv`, `ctrl_720.sv`; the Analogizer wrapper `pocket_analogizer.sv` and RndMnkIII's module under `analogizer/` (`docs/analogizer.md`) |
+| `sim/` | Verilator benches: `run_t11.sh`, `run_video.sh`, `run_sound.sh`, `run_system.sh`, `run_analogizer.sh`, `lint.sh` |
 | `tools/` | `mra_build.py` (ROM image) and `check_rom.lua` (checks it against MAME's regions), `render_model.py` (reference frame renderer), MAME Lua probes (`dumpstate.lua`, `trace_t11.lua`, `trace_sound.lua`) and the capture script `capture_states.sh`, `compare_sound.py`, `diff_png.py` / `diff_frames.py`, the two machines' event timelines (`wipe_events.py`, `compare_events.py`), `gen_vhdl_cores.sh` |
 | `*.mra` | the ROM recipes: `ssprint.mra`, `apb.mra`, `csprint.mra`, `paperboy.mra`, `720.mra` |
 | `ref/mame/` | the MAME sources the RTL was written from |
@@ -206,6 +236,16 @@ rest of the core is built on other people's work.
   platform tree, the SDRAM controller (whose pin-level timing comes from the
   Punch-Out!! core's `sdram16.sv`), the bench and release tooling, and the
   method in `METHODOLOGY.md`
+* **RndMnkIII** -- the [Analogizer](https://github.com/RndMnkIII/Analogizer)
+  adapter and its `openFPGA_Pocket_Analogizer` module
+  (`target/pocket/analogizer/`, taken verbatim from his MiraxPocket core by
+  way of the pocket-core-template), with the parts it gathers from others:
+  the Y/C encoder by **Mike Simone** (MiSTerFPGA_YC_Encoder), the
+  scandoubler and HQ2x by **Sorgelig** and **Ludvig Strigeus** (MiSTer), the
+  PlayStation controller interface after **pgate1**'s psPAD, and the SNAC
+  game-controller readers he credits to **@MikeSimonson**, the **MiST**
+  project, **@RandyS**, **jotego**, **Scott Larson** (the PS/2 receiver) and
+  **@tomasz**
 * **GHDL** -- converts the vendored VHDL cores to Verilog
 * **Verilator** -- every simulation bench in `sim/`
 

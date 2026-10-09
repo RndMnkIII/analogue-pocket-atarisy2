@@ -1,370 +1,264 @@
 {
-    "interact": {
-        "magic": "APF_VER_1",
-        "variables": [
-            {
-                "name": "Reset Core",
-                "id": 0,
-                "type": "action",
-                "enabled": true,
-                "address": "0xF0000000",
-                "value": 1
-            },
-            {
-                "name": "Screen Shape",
-                "id": 60,
-                "type": "list",
-                "enabled": true,
-                "persist": true,
-                "address": "0xF2000000",
-                "defaultval": 0,
-                "mask": "0xFFFFFFF9",
-                "options": [
-                    {
-                        "name": "Wide",
-                        "value": "0x00000000"
-                    },
-                    {
-                        "name": "Tall",
-                        "value": "0x00000002"
-                    }
-                ]
-            },
-            {
-                "name": "Steering Speed",
-                "id": 64,
-                "type": "list",
-                "enabled": true,
-                "persist": true,
-                "address": "0xF2000000",
-                "defaultval": 1,
-                "mask": "0xFFFFFFE7",
-                "options": [
-                    {
-                        "name": "Slow",
-                        "value": "0x00000000"
-                    },
-                    {
-                        "name": "Normal",
-                        "value": "0x00000008"
-                    },
-                    {
-                        "name": "Fast",
-                        "value": "0x00000010"
-                    },
-                    {
-                        "name": "Fastest",
-                        "value": "0x00000018"
-                    }
-                ]
-            },
-            {
-                "name": "Analog Stick",
-                "id": 65,
-                "type": "list",
-                "enabled": true,
-                "persist": true,
-                "address": "0xF2000000",
-                "defaultval": 0,
-                "mask": "0xFFFFF3FE",
-                "options": [
-                    {
-                        "name": "Default",
-                        "value": "0x00000000"
-                    },
-                    {
-                        "name": "Less reactive",
-                        "value": "0x00000400"
-                    },
-                    {
-                        "name": "More reactive",
-                        "value": "0x00000800"
-                    },
-                    {
-                        "name": "Reversed",
-                        "value": "0x00000001"
-                    },
-                    {
-                        "name": "Reversed, less",
-                        "value": "0x00000401"
-                    },
-                    {
-                        "name": "Reversed, more",
-                        "value": "0x00000801"
-                    }
-                ]
-            },
-            {
-                "name": "Scanlines",
-                "id": 61,
-                "type": "list",
-                "enabled": true,
-                "persist": true,
-                "address": "0xF3000000",
-                "defaultval": 0,
-                "mask": "0xFFFFFFFC",
-                "options": [
-                    {
-                        "name": "Off",
-                        "value": "0x00000000"
-                    },
-                    {
-                        "name": "25%",
-                        "value": "0x00000001"
-                    },
-                    {
-                        "name": "50%",
-                        "value": "0x00000002"
-                    },
-                    {
-                        "name": "75%",
-                        "value": "0x00000003"
-                    }
-                ]
-            },
-            {
-                "name": "Shadow Mask",
-                "id": 62,
-                "type": "list",
-                "enabled": true,
-                "persist": true,
-                "address": "0xF3000000",
-                "defaultval": 0,
-                "mask": "0xFFFFFF8F",
-                "options": [
-                    {
-                        "name": "Off",
-                        "value": "0x00000000"
-                    },
-                    {
-                        "name": "On",
-                        "value": "0x00000010"
-                    },
-                    {
-                        "name": "On, rotated",
-                        "value": "0x00000030"
-                    },
-                    {
-                        "name": "On, 2x",
-                        "value": "0x00000050"
-                    }
-                ]
-            },
-            {
-                "name": "Sprint: Difficulty",
-                "id": 73,
-                "type": "list",
-                "enabled": true,
-                "persist": true,
-                "address": "0xF1000000",
-                "defaultval": 1,
-                "mask": "0xFFFFFCFF",
-                "options": [
-                    {
-                        "name": "Easy",
-                        "value": "0x00000100"
-                    },
-                    {
-                        "name": "Medium",
-                        "value": "0x00000000"
-                    },
-                    {
-                        "name": "Medium Hard",
-                        "value": "0x00000200"
-                    },
-                    {
-                        "name": "Hard",
-                        "value": "0x00000300"
-                    }
-                ]
-            },
-            {
-                "name": "Sprint: Obstacles",
-                "id": 74,
-                "type": "list",
-                "enabled": true,
-                "persist": true,
-                "address": "0xF1000000",
-                "defaultval": 1,
-                "mask": "0xFFFFF3FF",
-                "options": [
-                    {
-                        "name": "Easy",
-                        "value": "0x00000400"
-                    },
-                    {
-                        "name": "Medium",
-                        "value": "0x00000000"
-                    },
-                    {
-                        "name": "Medium Hard",
-                        "value": "0x00000800"
-                    },
-                    {
-                        "name": "Hard",
-                        "value": "0x00000C00"
-                    }
-                ]
-            },
-            {
-                "name": "Sprint: Wrenches",
-                "id": 75,
-                "type": "list",
-                "enabled": true,
-                "persist": true,
-                "address": "0xF1000000",
-                "defaultval": 1,
-                "mask": "0xFFFFCFFF",
-                "options": [
-                    {
-                        "name": "2",
-                        "value": "0x00001000"
-                    },
-                    {
-                        "name": "3",
-                        "value": "0x00000000"
-                    },
-                    {
-                        "name": "4",
-                        "value": "0x00002000"
-                    },
-                    {
-                        "name": "5",
-                        "value": "0x00003000"
-                    }
-                ]
-            },
-            {
-                "name": "APB: Difficulty",
-                "id": 85,
-                "type": "list",
-                "enabled": true,
-                "persist": true,
-                "address": "0xF1000000",
-                "defaultval": 3,
-                "mask": "0xFFC7FFFF",
-                "options": [
-                    {
-                        "name": "Easiest",
-                        "value": "0x00380000"
-                    },
-                    {
-                        "name": "Very Easy",
-                        "value": "0x00300000"
-                    },
-                    {
-                        "name": "Easy",
-                        "value": "0x00280000"
-                    },
-                    {
-                        "name": "Medium Easy",
-                        "value": "0x00000000"
-                    },
-                    {
-                        "name": "Medium Hard",
-                        "value": "0x00200000"
-                    },
-                    {
-                        "name": "Hard",
-                        "value": "0x00100000"
-                    },
-                    {
-                        "name": "Very Hard",
-                        "value": "0x00080000"
-                    },
-                    {
-                        "name": "Hardest",
-                        "value": "0x00180000"
-                    }
-                ]
-            },
-            {
-                "name": "Paperboy: Difficulty",
-                "id": 90,
-                "type": "list",
-                "enabled": true,
-                "persist": true,
-                "address": "0xF1000000",
-                "defaultval": 2,
-                "mask": "0xFFFF3FFF",
-                "options": [
-                    {
-                        "name": "Easy",
-                        "value": "0x00004000"
-                    },
-                    {
-                        "name": "Medium",
-                        "value": "0x00008000"
-                    },
-                    {
-                        "name": "Medium Hard",
-                        "value": "0x00000000"
-                    },
-                    {
-                        "name": "Hard",
-                        "value": "0x0000C000"
-                    }
-                ]
-            },
-            {
-                "name": "720: Difficulty",
-                "id": 91,
-                "type": "list",
-                "enabled": true,
-                "persist": true,
-                "address": "0xF1000000",
-                "defaultval": 0,
-                "mask": "0xFFFCFFFF",
-                "options": [
-                    {
-                        "value": "0x00010000",
-                        "name": "Easy"
-                    },
-                    {
-                        "value": "0x00000000",
-                        "name": "Medium"
-                    },
-                    {
-                        "value": "0x00020000",
-                        "name": "Hard"
-                    },
-                    {
-                        "value": "0x00030000",
-                        "name": "Hardest"
-                    }
-                ],
-                "writeonly": true
-            },
-            {
-                "name": "720: Bonus Life",
-                "id": 92,
-                "type": "list",
-                "enabled": true,
-                "persist": true,
-                "address": "0xF1000000",
-                "defaultval": 0,
-                "mask": "0xFF3FFFFF",
-                "options": [
-                    {
-                        "value": "0x00400000",
-                        "name": "3000"
-                    },
-                    {
-                        "value": "0x00000000",
-                        "name": "5000"
-                    },
-                    {
-                        "value": "0x00800000",
-                        "name": "8000"
-                    },
-                    {
-                        "value": "0x00C00000",
-                        "name": "12000"
-                    }
-                ],
-                "writeonly": true
-            }
-        ],
-        "messages": []
-    }
+  "interact": {
+    "magic": "APF_VER_1",
+    "variables": [
+      {
+        "name": "Reset Core",
+        "id": 0,
+        "type": "action",
+        "enabled": true,
+        "address": "0xF0000000",
+        "value": 1
+      },
+      {
+        "name": "Screen Shape",
+        "id": 60,
+        "type": "list",
+        "enabled": true,
+        "persist": true,
+        "address": "0xF2000000",
+        "defaultval": 0,
+        "mask": "0xFFFFFFF9",
+        "options": [
+          {"name": "Wide", "value": "0x00000000"},
+          {"name": "Tall", "value": "0x00000002"}
+        ]
+      },
+      {
+        "name": "Steering Speed",
+        "id": 64,
+        "type": "list",
+        "enabled": true,
+        "persist": true,
+        "address": "0xF2000000",
+        "defaultval": 1,
+        "mask": "0xFFFFFFE7",
+        "options": [
+          {"name": "Slow", "value": "0x00000000"},
+          {"name": "Normal", "value": "0x00000008"},
+          {"name": "Fast", "value": "0x00000010"},
+          {"name": "Fastest", "value": "0x00000018"}
+        ]
+      },
+      {
+        "name": "Analog Stick",
+        "id": 65,
+        "type": "list",
+        "enabled": true,
+        "persist": true,
+        "address": "0xF2000000",
+        "defaultval": 0,
+        "mask": "0xFFFFF3FE",
+        "options": [
+          {"name": "Default", "value": "0x00000000"},
+          {"name": "Less reactive", "value": "0x00000400"},
+          {"name": "More reactive", "value": "0x00000800"},
+          {"name": "Reversed", "value": "0x00000001"},
+          {"name": "Reversed, less", "value": "0x00000401"},
+          {"name": "Reversed, more", "value": "0x00000801"}
+        ]
+      },
+      {
+        "name": "Sprint: Difficulty",
+        "id": 73,
+        "type": "list",
+        "enabled": true,
+        "persist": true,
+        "address": "0xF1000000",
+        "defaultval": 1,
+        "mask": "0xFFFFFCFF",
+        "options": [
+          {"name": "Easy", "value": "0x00000100"},
+          {"name": "Medium", "value": "0x00000000"},
+          {"name": "Medium Hard", "value": "0x00000200"},
+          {"name": "Hard", "value": "0x00000300"}
+        ]
+      },
+      {
+        "name": "Sprint: Obstacles",
+        "id": 74,
+        "type": "list",
+        "enabled": true,
+        "persist": true,
+        "address": "0xF1000000",
+        "defaultval": 1,
+        "mask": "0xFFFFF3FF",
+        "options": [
+          {"name": "Easy", "value": "0x00000400"},
+          {"name": "Medium", "value": "0x00000000"},
+          {"name": "Medium Hard", "value": "0x00000800"},
+          {"name": "Hard", "value": "0x00000C00"}
+        ]
+      },
+      {
+        "name": "APB: Difficulty",
+        "id": 85,
+        "type": "list",
+        "enabled": true,
+        "persist": true,
+        "address": "0xF1000000",
+        "defaultval": 3,
+        "mask": "0xFFC7FFFF",
+        "options": [
+          {"name": "Easiest", "value": "0x00380000"},
+          {"name": "Very Easy", "value": "0x00300000"},
+          {"name": "Easy", "value": "0x00280000"},
+          {"name": "Medium Easy", "value": "0x00000000"},
+          {"name": "Medium Hard", "value": "0x00200000"},
+          {"name": "Hard", "value": "0x00100000"},
+          {"name": "Very Hard", "value": "0x00080000"},
+          {"name": "Hardest", "value": "0x00180000"}
+        ]
+      },
+      {
+        "name": "Paperboy: Difficulty",
+        "id": 90,
+        "type": "list",
+        "enabled": true,
+        "persist": true,
+        "address": "0xF1000000",
+        "defaultval": 2,
+        "mask": "0xFFFF3FFF",
+        "options": [
+          {"name": "Easy", "value": "0x00004000"},
+          {"name": "Medium", "value": "0x00008000"},
+          {"name": "Medium Hard", "value": "0x00000000"},
+          {"name": "Hard", "value": "0x0000C000"}
+        ]
+      },
+      {
+        "name": "720: Difficulty",
+        "id": 91,
+        "type": "list",
+        "enabled": true,
+        "persist": true,
+        "address": "0xF1000000",
+        "defaultval": 0,
+        "mask": "0xFFFCFFFF",
+        "writeonly": true,
+        "options": [
+          {"value": "0x00010000", "name": "Easy"},
+          {"value": "0x00000000", "name": "Medium"},
+          {"value": "0x00020000", "name": "Hard"},
+          {"value": "0x00030000", "name": "Hardest"}
+        ]
+      },
+      {
+        "name": "720: Bonus Life",
+        "id": 92,
+        "type": "list",
+        "enabled": true,
+        "persist": true,
+        "address": "0xF1000000",
+        "defaultval": 0,
+        "mask": "0xFF3FFFFF",
+        "writeonly": true,
+        "options": [
+          {"value": "0x00400000", "name": "3000"},
+          {"value": "0x00000000", "name": "5000"},
+          {"value": "0x00800000", "name": "8000"},
+          {"value": "0x00C00000", "name": "12000"}
+        ]
+      },
+      {
+        "name": "Analogizer",
+        "id": 100,
+        "type": "list",
+        "enabled": true,
+        "persist": true,
+        "address": "0xF7000000",
+        "defaultval": 0,
+        "mask": "0xFFFFBFDF",
+        "options": [
+          {"name": "Off", "value": "0x0000"},
+          {"name": "On", "value": "0x0020"},
+          {"name": "On, Pocket off", "value": "0x4020"}
+        ]
+      },
+      {
+        "name": "Analogizer Video",
+        "id": 101,
+        "type": "list",
+        "enabled": true,
+        "persist": true,
+        "address": "0xF7000000",
+        "defaultval": 0,
+        "mask": "0xFFFFC3FF",
+        "options": [
+          {"name": "RGBS", "value": "0x0000"},
+          {"name": "RGsB", "value": "0x0400"},
+          {"name": "YPbPr", "value": "0x0800"},
+          {"name": "Scandoubler", "value": "0x1400"},
+          {"name": "Scandoubler 25%", "value": "0x1800"},
+          {"name": "Scandoubler 50%", "value": "0x1C00"},
+          {"name": "Scandoubler 75%", "value": "0x2000"},
+          {"name": "Scandoubler HQ2x", "value": "0x2400"}
+        ]
+      },
+      {
+        "name": "SNAC Adapter",
+        "id": 102,
+        "type": "list",
+        "enabled": true,
+        "persist": true,
+        "address": "0xF7000000",
+        "defaultval": 0,
+        "mask": "0xFFFFFFE0",
+        "options": [
+          {"name": "None", "value": "0x00"},
+          {"name": "DB15", "value": "0x01"},
+          {"name": "NES", "value": "0x02"},
+          {"name": "SNES", "value": "0x03"},
+          {"name": "PCE 2-button", "value": "0x04"},
+          {"name": "PCE 6-button", "value": "0x05"},
+          {"name": "PCE Multitap", "value": "0x06"},
+          {"name": "DB15 Fast", "value": "0x09"},
+          {"name": "SNES A,B<->X,Y", "value": "0x0B"},
+          {"name": "PSX Digital", "value": "0x10"},
+          {"name": "PSX Digital Fast", "value": "0x11"},
+          {"name": "PSX Analog", "value": "0x12"},
+          {"name": "PSX Analog Fast", "value": "0x13"}
+        ]
+      },
+      {
+        "name": "SNAC Assignment",
+        "id": 103,
+        "type": "list",
+        "enabled": true,
+        "persist": true,
+        "address": "0xF7000000",
+        "defaultval": 0,
+        "mask": "0xFFFFFC3F",
+        "options": [
+          {"name": "SNAC P1 -> P1", "value": "0x000"},
+          {"name": "SNAC P1 -> P2", "value": "0x040"},
+          {"name": "SNAC P1,P2 -> P1,P2", "value": "0x080"},
+          {"name": "SNAC P1,P2 -> P2,P1", "value": "0x0C0"},
+          {"name": "SNAC P1,P2 -> P3,P4", "value": "0x100"},
+          {"name": "SNAC P1-P4 -> P1-P4", "value": "0x140"}
+        ]
+      },
+      {
+        "name": "Analogizer H Position",
+        "id": 104,
+        "type": "slider_u32",
+        "enabled": true,
+        "persist": true,
+        "address": "0xF7000004",
+        "defaultval": 0,
+        "graphical": {"signed": true, "min": -32, "max": 32, "adjust_small": 1, "adjust_large": 4}
+      },
+      {
+        "name": "Analogizer V Position",
+        "id": 105,
+        "type": "slider_u32",
+        "enabled": true,
+        "persist": true,
+        "address": "0xF7000008",
+        "defaultval": 0,
+        "graphical": {"signed": true, "min": -20, "max": 8, "adjust_small": 1, "adjust_large": 4}
+      }
+    ],
+    "messages": []
+  }
 }

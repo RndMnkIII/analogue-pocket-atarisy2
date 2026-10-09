@@ -49,6 +49,8 @@ module core_top
          parameter USE_SRAM     = 0,       //! Enable SRAM
          parameter USE_CRAM0    = 0,       //! Enable Cellular RAM #1
          parameter USE_CRAM1    = 0,       //! Enable Cellular RAM #2
+         // Cartridge port
+         parameter USE_ANALOGIZER = 1,     //! Analogizer adapter (docs/analogizer.md)
          // Video
          parameter BPP_R        = 8,       //! Bits Per Pixel Red
          parameter BPP_G        = 8,       //! Bits Per Pixel Green
@@ -285,21 +287,27 @@ module core_top
     // bridge endianness
     assign bridge_endian_little = 0;
 
-    // cart is unused, so set all level translators accordingly
+    // cart is unused unless the Analogizer has it (pocket_analogizer, below,
+    // which holds these same levels until its menu entry enables it), so
+    // set all level translators accordingly
     // directions are 0:IN, 1:OUT
-    assign cart_tran_bank3         = 8'hzz;
-    assign cart_tran_bank3_dir     = 1'b0;
-    assign cart_tran_bank2         = 8'hzz;
-    assign cart_tran_bank2_dir     = 1'b0;
-    assign cart_tran_bank1         = 8'hzz;
-    assign cart_tran_bank1_dir     = 1'b0;
-    assign cart_tran_bank0         = 4'hf;
-    assign cart_tran_bank0_dir     = 1'b1;
-    assign cart_tran_pin30         = 1'b0;  // reset or cs2, we let the hw control it by itself
-    assign cart_tran_pin30_dir     = 1'bz;
-    assign cart_pin30_pwroff_reset = 1'b0;  // hardware can control this
-    assign cart_tran_pin31         = 1'bz;  // input
-    assign cart_tran_pin31_dir     = 1'b0;  // input
+    generate
+        if(USE_ANALOGIZER == 0) begin
+            assign cart_tran_bank3         = 8'hzz;
+            assign cart_tran_bank3_dir     = 1'b0;
+            assign cart_tran_bank2         = 8'hzz;
+            assign cart_tran_bank2_dir     = 1'b0;
+            assign cart_tran_bank1         = 8'hzz;
+            assign cart_tran_bank1_dir     = 1'b0;
+            assign cart_tran_bank0         = 4'hf;
+            assign cart_tran_bank0_dir     = 1'b1;
+            assign cart_tran_pin30         = 1'b0;  // reset or cs2, we let the hw control it by itself
+            assign cart_tran_pin30_dir     = 1'bz;
+            assign cart_pin30_pwroff_reset = 1'b0;  // hardware can control this
+            assign cart_tran_pin31         = 1'bz;  // input
+            assign cart_tran_pin31_dir     = 1'b0;  // input
+        end
+    endgenerate
 
     // link port is input only
     assign port_tran_so      = 1'bz;
@@ -544,6 +552,7 @@ module core_top
     //! APF Bridge Read Data
     //! ------------------------------------------------------------------------
     wire [31:0] int_bridge_rd_data;
+    wire [31:0] ana_bridge_rd_data;
     wire [31:0] nvm_bridge_rd_data_s;
 
     // Not 0x10000000: a slot there hangs the Pocket at the end of loading as
@@ -667,6 +676,7 @@ module core_top
             32'hF2000000: begin bridge_rd_data <= int_bridge_rd_data;   end // Modifiers
             32'hF3000000: begin bridge_rd_data <= int_bridge_rd_data;   end // A/V Filters
             32'hF4000000: begin bridge_rd_data <= int_bridge_rd_data;   end // Extra DIP Switches
+            32'hF7xxxxxx: begin bridge_rd_data <= ana_bridge_rd_data;   end // Analogizer settings (menu)
             32'hF8xxxxxx: begin bridge_rd_data <= cmd_bridge_rd_data;   end // APF Bridge (Reserved)
             32'hFA000000: begin bridge_rd_data <= int_bridge_rd_data;   end // Status Low  [31:0]
             32'hFB000000: begin bridge_rd_data <= int_bridge_rd_data;   end // Status High [63:32]
@@ -878,14 +888,20 @@ module core_top
     wire m_btn1,   m_btn2,  m_btn3, m_btn4;
     wire m_btn5,   m_btn6,  m_btn7, m_btn8;
 
+    //! The controller words the game reads: the Pocket's, or with the
+    //! Analogizer enabled, SNAC pads put in their place (pocket_analogizer.sv,
+    //! below).  Use key1..key4 wherever a core would read cont1..4_key.  The
+    //! analog sticks (cont*_joy) are the Pocket's either way.
+    wire [31:0] key1, key2, key3, key4;
+
     gamepad #(.JOY_PADS(JOY_PADS),.JOY_ALT(JOY_ALT)) pocket_gamepad
     (
         .clk_sys   ( clk_sys   ),
         // Pocket PAD Interface
-        .cont1_key ( cont1_key ), .cont1_joy ( cont1_joy ),
-        .cont2_key ( cont2_key ), .cont2_joy ( cont2_joy ),
-        .cont3_key ( cont3_key ), .cont3_joy ( cont3_joy ),
-        .cont4_key ( cont4_key ), .cont4_joy ( cont4_joy ),
+        .cont1_key ( key1      ), .cont1_joy ( cont1_joy ),
+        .cont2_key ( key2      ), .cont2_joy ( cont2_joy ),
+        .cont3_key ( key3      ), .cont3_joy ( cont3_joy ),
+        .cont4_key ( key4      ), .cont4_joy ( cont4_joy ),
         // Player 1
         .p1_up     ( p1_up     ), .p1_down   ( p1_down   ),
         .p1_left   ( p1_left   ), .p1_right  ( p1_right  ),
@@ -932,7 +948,7 @@ module core_top
     wire clk_vid;       // Video: 16.0 MHz dot clock, exactly clk_sys / 6
     wire clk_vid_90deg; // Video: 16.0 MHz @ 90deg (Pocket RGB clock pair)
     wire clk_sdram;     // SDRAM chip clock: 96.0 MHz, phase-shifted (see the SDC)
-    wire clk_unused1;
+    wire clk_ana;       // Analogizer: 64.0 MHz, clk_sys * 2 / 3, four clocks a dot
 
     core_pll core_pll
     (
@@ -943,7 +959,7 @@ module core_top
         .outclk_1 ( clk_vid       ),
         .outclk_2 ( clk_vid_90deg ),
         .outclk_3 ( clk_sdram     ),
-        .outclk_4 ( clk_unused1   ),
+        .outclk_4 ( clk_ana       ),
 
         .locked   ( pll_core_locked )
     );
@@ -992,7 +1008,7 @@ module core_top
                      .stick_active(j2_left | j2_right), .stick_x(j2_lx), .stick_rev(steer_stick_rev), .stick_sens(steer_stick_sens), .pos(wheel1));
     // player 3: dock pad 3, raw APF bits (0 up, 1 down, 2 left, 3 right, 4 A, 5 B, 6 X, 7 Y, 8 L1, 9 R1, 14 select, 15 start)
     wire [31:0] c3;
-    synch_3 #(.WIDTH(32)) sync_c3(cont3_key, c3, clk_sys);
+    synch_3 #(.WIDTH(32)) sync_c3(key3, c3, clk_sys);
     steer_wheel sw2 (.clk(clk_sys), .reset(ss_reset), .rate(steer_rate), .left(c3[2]), .right(c3[3]),
                      .stick_active(1'b0), .stick_x(8'h80), .stick_rev(1'b0), .stick_sens(2'd0), .pos(wheel2));
     // 720 Degrees: the rotating joystick on LETA 0 (centre) and LETA 1 (rotate)
@@ -1171,12 +1187,60 @@ module core_top
         vr_q  <= ss_r;  vg_q <= ss_g;  vb_q <= ss_b;
         vhs_q <= ss_hs; vvs_q <= ss_vs; vde_q <= ss_de;
     end
-    assign core_r  = vr_q;
-    assign core_g  = vg_q;
-    assign core_b  = vb_q;
+    //! "Analogizer: On, Pocket off" in the menu: the picture goes to the
+    //! monitor only.  Syncs and DE keep running for the scaler.
+    wire ana_pocket_off;
+    reg  [1:0] poff_s = 2'b00;
+    always @(posedge clk_vid) poff_s <= {poff_s[0], ana_pocket_off};
+    assign core_r  = poff_s[1] ? 8'd0 : vr_q;
+    assign core_g  = poff_s[1] ? 8'd0 : vg_q;
+    assign core_b  = poff_s[1] ? 8'd0 : vb_q;
     assign core_hs = vhs_q;
     assign core_vs = vvs_q;
     assign core_de = vde_q;
+
+    //! ------------------------------------------------------------------
+    //! The Analogizer (target/pocket/pocket_analogizer.sv, docs/analogizer.md).
+    //! It takes the same picture the Pocket gets, at the board's own raster:
+    //! 640 x 416 dots of 16 MHz, 512 x 384 visible, 25.0 kHz lines and
+    //! 60.1 Hz -- a medium-resolution monitor's, which no 15 kHz television
+    //! syncs to.  Its clock is 64 MHz, the least that is four times the dot
+    //! rate (the scandoubler halves the dot), from the PLL's spare output; it
+    //! is held idle until the game is loaded.  Set from the core's menu
+    //! (interact.json, 0xF7000000-0xF7000008).  With the menu's "Analogizer"
+    //! off, the default, the cartridge port stays as an unused one and
+    //! key1..key4 are cont1..cont4_key.
+    //! ------------------------------------------------------------------
+    generate
+        if(USE_ANALOGIZER == 1) begin : analogizer
+            pocket_analogizer #(.CLK_HZ(64_000_000), .LINE_LEN(640)) u_analogizer (
+                .clk_74a(clk_74a), .clk(clk_ana), .rst(ss_reset),
+                .clk_src(clk_sys), .src_pix_ce(ss_ce_pix),
+                .src_rgb({ss_r, ss_g, ss_b}),
+                .src_hs(ss_hs), .src_vs(ss_vs), .src_hb(ss_hb), .src_vb(ss_vb),
+                .bridge_addr(bridge_addr),
+                .bridge_rd(bridge_rd), .bridge_rd_data(ana_bridge_rd_data),
+                .bridge_wr(bridge_wr), .bridge_wr_data(bridge_wr_data),
+                .cont1_key(cont1_key), .cont2_key(cont2_key),
+                .cont3_key(cont3_key), .cont4_key(cont4_key),
+                .key1(key1), .key2(key2), .key3(key3), .key4(key4),
+                .ena(), .pocket_off(ana_pocket_off),
+                .ps2_code_new(), .ps2_code(),
+                .cart_tran_bank2(cart_tran_bank2), .cart_tran_bank2_dir(cart_tran_bank2_dir),
+                .cart_tran_bank3(cart_tran_bank3), .cart_tran_bank3_dir(cart_tran_bank3_dir),
+                .cart_tran_bank1(cart_tran_bank1), .cart_tran_bank1_dir(cart_tran_bank1_dir),
+                .cart_tran_bank0(cart_tran_bank0), .cart_tran_bank0_dir(cart_tran_bank0_dir),
+                .cart_tran_pin30(cart_tran_pin30), .cart_tran_pin30_dir(cart_tran_pin30_dir),
+                .cart_pin30_pwroff_reset(cart_pin30_pwroff_reset),
+                .cart_tran_pin31(cart_tran_pin31), .cart_tran_pin31_dir(cart_tran_pin31_dir)
+            );
+        end else begin : no_analogizer
+            assign key1 = cont1_key; assign key2 = cont2_key;
+            assign key3 = cont3_key; assign key4 = cont4_key;
+            assign ana_bridge_rd_data = 32'h0;
+            assign ana_pocket_off = 1'b0;
+        end
+    endgenerate
 
     //! ------------------------------------------------------------------
     //! Audio clock domain crossing (METHODOLOGY section 5.4): the sound

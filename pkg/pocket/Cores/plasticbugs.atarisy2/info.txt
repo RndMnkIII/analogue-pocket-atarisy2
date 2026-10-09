@@ -35,3 +35,14 @@ image from your own MAME romset:
 (ssprint, apb, csprint, paperboy,
 720) and copy the .rom files into
 Assets/atarisy2/common/.
+
+Analogizer: the board's own 25 kHz
+picture (512x384, 60 Hz) and SNAC
+pads, set in this core's menu
+(Analogizer: On). RGBS/RGsB/YPbPr
+need a 25 kHz (medium-res or
+tri-sync) monitor; Scandoubler is
+50 kHz, for a multisync PC CRT. No
+15 kHz TV syncs to it. The slot is
+powered: remove any cartridge
+first.
