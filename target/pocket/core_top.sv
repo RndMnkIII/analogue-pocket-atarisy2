@@ -948,7 +948,7 @@ module core_top
     wire clk_vid;       // Video: 16.0 MHz dot clock, exactly clk_sys / 6
     wire clk_vid_90deg; // Video: 16.0 MHz @ 90deg (Pocket RGB clock pair)
     wire clk_sdram;     // SDRAM chip clock: 96.0 MHz, phase-shifted (see the SDC)
-    wire clk_ana;       // Analogizer: 64.0 MHz, clk_sys * 2 / 3, four clocks a dot
+    wire clk_ana;       // Analogizer: 48.0 MHz, clk_sys / 2, in phase with it
 
     core_pll core_pll
     (
@@ -1201,23 +1201,43 @@ module core_top
 
     //! ------------------------------------------------------------------
     //! The Analogizer (target/pocket/pocket_analogizer.sv, docs/analogizer.md).
-    //! It takes the same picture the Pocket gets, at the board's own raster:
-    //! 640 x 416 dots of 16 MHz, 512 x 384 visible, 25.0 kHz lines and
-    //! 60.1 Hz -- a medium-resolution monitor's, which no 15 kHz television
-    //! syncs to.  Its clock is 64 MHz, the least that is four times the dot
-    //! rate (the scandoubler halves the dot), from the PLL's spare output; it
-    //! is held idle until the game is loaded.  Set from the core's menu
-    //! (interact.json, 0xF7000000-0xF7000008).  With the menu's "Analogizer"
-    //! off, the default, the cartridge port stays as an unused one and
-    //! key1..key4 are cont1..cont4_key.
+    //! The board's picture is 640 x 416 dots of 16 MHz, 512 x 384 visible,
+    //! 25.0 kHz lines -- a medium-resolution monitor's, which no 15 kHz
+    //! television or PVM syncs to (on one it showed about seven interlaced
+    //! copies of the screen).  So the Analogizer gets it through ana_15k:
+    //! 192p at 15.75 kHz and the board's 60.1 Hz, each line one pair of the
+    //! board's lines, blended (the default) or the even one ("Sharp"), 609
+    //! dots of 9.6 MHz.  The Pocket's own picture does not pass through it.
+    //! The Analogizer's clock is 48 MHz, clk_sys / 2 from the PLL's spare
+    //! output, five clocks a dot.  It is held idle until the game is loaded.
+    //! Set from the core's menu (interact.json, 0xF7000000-0xF7000008); Sharp
+    //! is bit 16 of the 0xF7000000 word, which the adapter module ignores and
+    //! is decoded here from the bridge write, as Punch-Out!! does for its
+    //! top-screen option.  With the menu's "Analogizer" off, the default, the
+    //! cartridge port stays as an unused one and key1..key4 are
+    //! cont1..cont4_key.
     //! ------------------------------------------------------------------
     generate
         if(USE_ANALOGIZER == 1) begin : analogizer
-            pocket_analogizer #(.CLK_HZ(64_000_000), .LINE_LEN(640)) u_analogizer (
+            // "On, Sharp": bit 16 with the enable (bit 5)
+            reg sharp_74 = 1'b0;
+            always @(posedge clk_74a)
+                if (bridge_wr && bridge_addr == 32'hF7000000)
+                    sharp_74 <= bridge_wr_data[16] && bridge_wr_data[5];
+            wire        a15_ce, a15_hs, a15_vs, a15_hb, a15_vb;
+            wire [23:0] a15_rgb;
+            ana_15k u_ana15k (
+                .clk(clk_sys), .sharp(sharp_74),
+                .src_ce(ss_ce_pix), .src_rgb({ss_r, ss_g, ss_b}),
+                .src_hb(ss_hb), .src_vb(ss_vb),
+                .o_ce(a15_ce), .o_rgb(a15_rgb), .o_hs(a15_hs), .o_vs(a15_vs),
+                .o_hb(a15_hb), .o_vb(a15_vb)
+            );
+            pocket_analogizer #(.CLK_HZ(48_000_000), .LINE_LEN(609)) u_analogizer (
                 .clk_74a(clk_74a), .clk(clk_ana), .rst(ss_reset),
-                .clk_src(clk_sys), .src_pix_ce(ss_ce_pix),
-                .src_rgb({ss_r, ss_g, ss_b}),
-                .src_hs(ss_hs), .src_vs(ss_vs), .src_hb(ss_hb), .src_vb(ss_vb),
+                .clk_src(clk_sys), .src_pix_ce(a15_ce),
+                .src_rgb(a15_rgb),
+                .src_hs(a15_hs), .src_vs(a15_vs), .src_hb(a15_hb), .src_vb(a15_vb),
                 .bridge_addr(bridge_addr),
                 .bridge_rd(bridge_rd), .bridge_rd_data(ana_bridge_rd_data),
                 .bridge_wr(bridge_wr), .bridge_wr_data(bridge_wr_data),

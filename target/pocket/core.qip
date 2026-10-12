@@ -7,3 +7,4 @@ set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) "
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) "ctrl_720.sv"]
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) "pocket_analogizer.sv"]
 set_global_assignment -name QIP_FILE           [file join $::quartus(qip_path) "analogizer/analogizer.qip"]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) "ana_15k.sv"]

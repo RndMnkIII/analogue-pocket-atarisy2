@@ -22,13 +22,19 @@ verilator --lint-only $FLAGS --top-module ssprint_core $RTL $VENDOR
 # (the held pixel's two syncs, which it re-makes, and the sticks' upper halves)
 # and the stub's unused ports are by design, and the vendored files' `timescale
 # against the wrapper's none is theirs -- those three warnings are off here.
+# yc_out_legacy.sv goes through sim/yc_out_legacy_stub.v (its sine table, a
+# wire array with an initial value, is past CI's Verilator 5.020), and
+# BLKANDNBLK in the vendored SNAC module is waived (5.020 cannot lint it).
 echo "--- analogizer ---"
 A=target/pocket/analogizer
-out=$(verilator --lint-only $FLAGS -Wno-PROCASSWIRE -Wno-UNUSEDSIGNAL -Wno-UNUSEDPARAM -Wno-TIMESCALEMOD \
+out=$(verilator --lint-only $FLAGS -Wno-PROCASSWIRE -Wno-BLKANDNBLK -Wno-UNUSEDSIGNAL -Wno-UNUSEDPARAM -Wno-TIMESCALEMOD \
       --top-module pocket_analogizer \
       target/pocket/pocket_analogizer.sv platform/pocket/helpers/synch_3.sv \
-      $A/*.v $A/*.sv sim/ps2_keyboard_stub.v 2>&1 \
+      $A/*.v $(ls $A/*.sv | grep -v /yc_out_legacy.sv) sim/yc_out_legacy_stub.v sim/ps2_keyboard_stub.v 2>&1 \
       | grep -E '^%(Error|Warning)' | grep -v 'Exiting due to' \
       | grep -v -E '^%Warning[^ ]*: [^ ]*(target/pocket/analogizer|platform/pocket)/' || true)
 if [ -n "$out" ]; then echo "$out"; exit 1; fi
+# the 25 -> 15 kHz converter in front of it, ours, under the full -Wall
+echo "--- ana_15k ---"
+verilator --lint-only $FLAGS --top-module ana_15k target/pocket/ana_15k.sv
 echo "lint clean"

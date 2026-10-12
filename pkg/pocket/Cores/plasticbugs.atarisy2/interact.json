@@ -168,11 +168,13 @@
         "persist": true,
         "address": "0xF7000000",
         "defaultval": 0,
-        "mask": "0xFFFFBFDF",
+        "mask": "0xFFFEBFDF",
         "options": [
-          {"name": "Off", "value": "0x0000"},
-          {"name": "On", "value": "0x0020"},
-          {"name": "On, Pocket off", "value": "0x4020"}
+          {"name": "Off", "value": "0x00000"},
+          {"name": "On", "value": "0x00020"},
+          {"name": "On, Sharp", "value": "0x10020"},
+          {"name": "On, Pocket off", "value": "0x04020"},
+          {"name": "On, Sharp, Pocket off", "value": "0x14020"}
         ]
       },
       {
@@ -188,10 +190,8 @@
           {"name": "RGBS", "value": "0x0000"},
           {"name": "RGsB", "value": "0x0400"},
           {"name": "YPbPr", "value": "0x0800"},
+          {"name": "Y/C NTSC", "value": "0x0C00"},
           {"name": "Scandoubler", "value": "0x1400"},
-          {"name": "Scandoubler 25%", "value": "0x1800"},
-          {"name": "Scandoubler 50%", "value": "0x1C00"},
-          {"name": "Scandoubler 75%", "value": "0x2000"},
           {"name": "Scandoubler HQ2x", "value": "0x2400"}
         ]
       },
@@ -240,7 +240,7 @@
         "persist": true,
         "address": "0xF7000004",
         "defaultval": 0,
-        "graphical": {"signed": true, "min": -32, "max": 32, "adjust_small": 1, "adjust_large": 4}
+        "graphical": {"signed": true, "min": -5, "max": 12, "adjust_small": 1, "adjust_large": 4}
       },
       {
         "name": "Analogizer V Position",
@@ -250,7 +250,7 @@
         "persist": true,
         "address": "0xF7000008",
         "defaultval": 0,
-        "graphical": {"signed": true, "min": -20, "max": 8, "adjust_small": 1, "adjust_large": 4}
+        "graphical": {"signed": true, "min": -40, "max": 27, "adjust_small": 1, "adjust_large": 4}
       }
     ],
     "messages": []

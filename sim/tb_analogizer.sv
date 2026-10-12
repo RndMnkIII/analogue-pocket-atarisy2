@@ -1,9 +1,11 @@
 // The Analogizer path on its own: target/pocket/pocket_analogizer.sv with the
-// vendored adapter module behind it, driven the way core_top drives it -- this
-// core's raster (640 x 416 dots, 512 x 384 visible, one dot per 6 clocks of
-// 96 MHz: 25.0 kHz lines, a medium-resolution monitor's), the 64 MHz
-// Analogizer clock, four of its clocks a dot, and the settings word written
-// over the bridge as the core's menu writes it.
+// vendored adapter module behind it, driven the way core_top drives it -- the
+// 15 kHz raster target/pocket/ana_15k.sv makes from the board's 25 kHz one
+// (609 x 262 dots of 9.6 MHz, 512 x 192 visible), the 48 MHz Analogizer
+// clock in phase with the system clock, and the settings word written over
+// the bridge as the core's menu writes it.  Here every dot is 10 system
+// clocks; the converter's real lines end with one dot 7 or 8 clocks longer,
+// in the back porch, which sim/run_ana15k.sh measures.
 // The raster is set at the top of the module: change it with the core's.  It
 // reads the cartridge pins as the ADV7123 would and checks:
 //
@@ -16,8 +18,13 @@
 //   RGBS    every visible pixel of a frame reaches the DAC pins, in order,
 //           as its top six bits per channel; csync once a line, hsync-long
 //   position  both ends of the menu's position sliders: csync moves by the
-//           dots and lines asked and stays out of the picture, the picture
-//           is unchanged, and a jump between settings never inverts csync
+//           dots and lines asked and stays out of the picture and the Y/C
+//           colour burst, the picture is unchanged, and a jump between
+//           settings never inverts csync
+//   width   both ends of the width slider: every line is as long as asked,
+//           centred where it was, and holds every dot (stretched) or an
+//           even subset of them (squashed), in order; the lines stay where
+//           they were and the scandoubler is untouched
 //   SVGA    the scandoubler: twice the lines per frame, at half the period
 //   YPbPr, Y/C  run without an unknown on any pin (no reference to compare)
 //   SNAC    each assignment puts pads where AnalogizerConfigurator says
@@ -30,25 +37,30 @@
 module tb_analogizer;
     // ------------------------------------------- the core's raster: SET THESE
     // to the core's (its video module, and core_top's pocket_analogizer
-    // parameters).  This core: rtl/ssprint_video.sv, 16 MHz dots from 96 MHz.
-    // Its lines are counted here from the start of vblank (its line 384), so
-    // that the bench's frame starts in the blanking, before the vsync; the
-    // raster is the same: vsync on its lines 392-395, picture on 0-383.
-    localparam int DIV    = 6;            // system clocks a dot
-    localparam int HTOTAL = 640, VTOTAL = 416;
+    // parameters).  This core: the converter, ana_15k.sv, 9.6 MHz dots from
+    // 96 MHz.  Its lines are counted here from the first blank one (its line
+    // 192), so that the bench's frame starts in the blanking, before the
+    // vsync; the raster is the same: vsync on its lines 219-221, picture on
+    // 0-191.
+    localparam int DIV    = 10;           // system clocks a dot
+    localparam int HTOTAL = 609, VTOTAL = 262;
     localparam int X0 = 0,   X1 = 511;    // visible dots, inclusive
-    localparam int Y0 = 32,  Y1 = 415;    // visible lines, inclusive (its 0-383)
-    localparam int HS0 = 544, HS1 = 608;  // hsync [HS0, HS1)
-    localparam int VS0 = 8,   VS1 = 12;   // vsync [VS0, VS1) (its 392-395)
-    localparam int CLK_HZ = 64_000_000;   // the Analogizer's clock: clk_sys * 2 / 3
+    localparam int Y0 = 70,  Y1 = 261;    // visible lines, inclusive (its 0-191)
+    localparam int HS0 = 524, HS1 = 569;  // hsync [HS0, HS1): 4.7 us
+    localparam int VS0 = 27,  VS1 = 30;   // vsync [VS0, VS1) (its 219-221)
+    localparam int CLK_HZ = 48_000_000;   // the Analogizer's clock: clk_sys / 2
     localparam int W = X1 - X0 + 1, H = Y1 - Y0 + 1;
-    localparam int APD = 4;               // Analogizer clocks a dot: 64 / 16
+    localparam int APD = DIV / 2;         // Analogizer clocks a dot
+    // the end of the Y/C colour burst after hsync ends, in Analogizer clocks
+    // (pocket_analogizer's CB_NTSC; NTSC's is the later)
+    localparam int CB_END = (2 * (CLK_HZ * 3256.0 / 3150000000.0) + 1) / 2
+                          + (2 * (CLK_HZ * 792.0 / 315000000.0) + 1) / 2;
     localparam int FRAME = HTOTAL * VTOTAL * APD;
 
     // ------------------------------------------------------------- clocks
     logic clk_src = 1'b0, clk = 1'b0, clk_74a = 1'b0;
     always #5208 clk_src = ~clk_src;      // 96 MHz (10.416 ns)
-    always #7812 clk = ~clk;              // 64 MHz, two periods to clk_src's three
+    always #10416 clk = ~clk;             // 48 MHz, edges on clk_src's
     always #6734 clk_74a = ~clk_74a;      // 74.25 MHz, unrelated
 
     // ------------------------------------------------- the core's raster
@@ -69,9 +81,13 @@ module tb_analogizer;
     end
     wire vis_x = (hpos >= 10'(X0)) && (hpos <= 10'(X1));
     wire vis_y = (vpos >= 10'(Y0)) && (vpos <= 10'(Y1));
-    // a colour every dot can be told apart by: x in red and blue, y in green
+    // a colour every dot can be told apart by, even at the DAC's six bits a
+    // channel: x[8:3] in red, x[5:0] in blue, y in green
     function automatic [23:0] colour(input [9:0] x, input [9:0] y);
-        colour = {x[7:0], y[7:0], ~x[7:0] ^ {y[1:0], 6'd0}};
+        colour = {x[8:3], 2'b00, y[7:0], x[5:0], 2'b00};
+    endfunction
+    function automatic int dac_x(input [5:0] r, input [5:0] b);
+        dac_x = {r[5:3], b};
     endfunction
     always_ff @(posedge clk_src) if (pix_ce) begin
         hb  <= !vis_x;  vb <= !vis_y;
@@ -281,21 +297,16 @@ module tb_analogizer;
             @(negedge clk);
             if (dac_blank_n && !dac_hs) in_pic++;
         end
-        // out of any vsync first: an ordinary hsync, a whole low run shorter
-        // than two hsyncs, ending (a slider can put the vsync on the first
-        // blank line, already under way where the frame above ended, where
-        // the low run the search starts in is only the tail of one)
-        while (!dac_hs) @(negedge clk);
+        // start from an ordinary hsync, never partway through a vsync (a
+        // slider can put vsync at the top of the frame)
         run = 0;
         forever begin
             @(negedge clk);
             if (!dac_hs) run++;
-            else begin
-                if (run > 0 && run < 2 * (HS1 - HS0) * APD) break;
-                run = 0;
-            end
+            else if (run > 0 && run <= (HS1 - HS0) * APD + 4) break;
+            else run = 0;
         end
-        // the vsync: the next low run on csync longer than two hsyncs
+        // the vsync: the first low run on csync longer than two hsyncs
         run = 0; t = 0;
         while (run < 2 * (HS1 - HS0) * APD) begin
             @(negedge clk); t++;
@@ -309,6 +320,79 @@ module tb_analogizer;
         t = 0;
         do begin bl_p = dac_blank_n; @(negedge clk); t++; end while (bl_p || !dac_blank_n);
         gh = t;
+    endtask
+
+    // the width slider, as the menu writes it, read back
+    task automatic set_size(input int p);
+        logic [31:0] r;
+        write_word(32'hF700000C, 32'(p));
+        read_word(32'hF700000C, r);
+        if (r !== 32'(p)) fail("width: the slider does not read back");
+        repeat (20) @(posedge clk);
+    endtask
+
+    // one frame at the pins, RGBS: each visible line's start (clocks from
+    // csync's fall), length, and the dots it shows, decoded from the colour
+    task automatic check_width(input int p, input int st0);
+        int t, st, len, lines, bad_seq, bad_len, bad_hold, bad_ctr, run, x, px, holds_lo, holds_hi;
+        int want_len, lo, hi;
+        logic cs_p, bl_p, in_line;
+        real hold;
+        frame_start();
+        repeat (2000) @(posedge clk);
+        // start inside vertical blanking: a whole line with no picture (a
+        // board that draws on its last line has it a line late here)
+        begin
+            int dark = 0;
+            while (dark < HTOTAL * APD) begin
+                @(negedge clk);
+                dark = dac_blank_n ? 0 : dark + 1;
+            end
+        end
+        want_len = (W * APD * (100 + p) + 50) / 100;
+        hold = APD * (100.0 + p) / 100.0;
+        lo = $floor(hold); hi = $ceil(hold);
+        lines = 0; bad_seq = 0; bad_len = 0; bad_hold = 0; bad_ctr = 0;
+        holds_lo = 0; holds_hi = 0;
+        t = 0; in_line = 0; cs_p = 1; bl_p = 0;
+        repeat (FRAME) begin
+            @(negedge clk); t++;
+            if (cs_p && !dac_hs) t = 0;               // csync falls: a line starts
+            cs_p = dac_hs;
+            if (dac_blank_n) begin
+                x = dac_x(dac_r, dac_b);
+                if (!bl_p) begin                        // the line's first dot
+                    in_line = 1; st = t; len = 0; run = 0; px = x;
+                    if (x != X0) bad_seq++;
+                end
+                len++;
+                if (x == px) run++;
+                else begin
+                    if (x < px || x > px + ((p < 0) ? 2 : 1)) bad_seq++;
+                    if (px != X0 && (run < lo || run > hi)) bad_hold++;
+                    if (run == lo) holds_lo++; else if (run == hi) holds_hi++;
+                    run = 1; px = x;
+                end
+            end else if (bl_p && in_line) begin         // the line's end
+                in_line = 0; lines++;
+                if (px != X1) bad_seq++;
+                if (len < want_len - 2 || len > want_len + 2) bad_len++;
+                // centred: the start moves by half the change in length
+                // (4, and 5 where the source line is an odd number of clocks,
+                // as ana_15k's 609 x 5 is: its centre falls on a half clock)
+                if ((st - st0) * 2 + (len - W * APD) > 4 + (HTOTAL * APD) % 2
+                    || (st - st0) * 2 + (len - W * APD) < -4 - (HTOTAL * APD) % 2) bad_ctr++;
+            end
+            bl_p = dac_blank_n;
+        end
+        $display("width %0d%%: %0d lines, %0d clocks a line (want %0d), start %0d (%0d at 0); dots held %0d or %0d clocks (%0d, %0d times); %0d out of order, %0d long or short, %0d off centre, %0d held wrongly",
+                 p, lines, len, want_len, st, st0, lo, hi, holds_lo, holds_hi, bad_seq, bad_len, bad_ctr, bad_hold);
+        if (lines != H) fail("width: wrong number of lines");
+        if (bad_seq != 0) fail("width: dots missing or out of order");
+        if (bad_len != 0) fail("width: a line is not the length asked");
+        if (bad_ctr != 0) fail("width: the picture is not centred where it was");
+        if (bad_hold != 0) fail("width: a dot held for the wrong time");
+        if (st - (HS1 - HS0) * APD < CB_END) fail("width: the picture starts inside the Y/C colour burst");
     endtask
 
     // a slider jump, written just after a pulse at the old setting, that
@@ -359,7 +443,10 @@ module tb_analogizer;
         end
         $display("SVGA: %0d hsync pulses in a frame of %0d clocks, line period %0d clocks", hs_n, t, period);
         if (hs_n != 2 * VTOTAL) fail("SVGA: not twice the core's lines");
-        if (period * 2 != HTOTAL * APD) fail("SVGA: line period is not half the core's");
+        // (an odd line, as ana_15k's 609 dots of 5 clocks are, halves to a
+        // half clock: the scandoubler's lines are then a clock either side)
+        if (period * 2 - HTOTAL * APD > 1 || period * 2 - HTOTAL * APD < -1)
+            fail("SVGA: line period is not half the core's");
         if (t != FRAME) fail("SVGA: frame period is not the core's");
     endtask
 
@@ -473,6 +560,16 @@ module tb_analogizer;
                 if (gh - gh0 != hs[i] * APD) fail("position: the picture did not move by the dots asked");
                 if (gv - gv0 != vs_[i]) fail("position: the picture did not move by the lines asked");
                 if (e != 0) fail("position: a sync moved into the picture");
+                if (gh - (HS1 - HS0) * APD < CB_END) begin
+                    $display("  %0d clocks from hsync's end to the picture, the colour burst needs %0d",
+                             gh - (HS1 - HS0) * APD, CB_END);
+                    // a board whose own timing already puts the burst on the
+                    // picture (Y/C only) is noted, not failed
+                    if (gh0 - (HS1 - HS0) * APD >= CB_END)
+                        fail("position: the picture starts inside the Y/C colour burst");
+                    else $display("  note: the board's own timing already does (%0d clocks at 0); Y/C only",
+                                  gh0 - (HS1 - HS0) * APD);
+                end
                 write_settings(settings(1'b1, 5'h00, 4'd0, 4'h5, 1'b0));
                 check_svga();
                 write_settings(settings(1'b1, 5'h00, 4'd0, 4'h0, 1'b0));
@@ -481,9 +578,65 @@ module tb_analogizer;
                                         : POS_V_MAX - (VS1 - VS0) - 1);
             check_jump(1'b0, POS_H_MAX, (POS_H_MAX - (HS1 - HS0) - 1 < POS_H_MIN) ? POS_H_MIN
                                         : POS_H_MAX - (HS1 - HS0) - 1);
+            // and a large step down to 0, which hands the sync back to the
+            // source's: one sync's width plus one past it, where the range has it
+            check_jump(1'b1, (VS1 - VS0 + 1 <= POS_V_MAX) ? VS1 - VS0 + 1 : POS_V_MAX, 0);
+            check_jump(1'b0, (HS1 - HS0 + 1 <= POS_H_MAX) ? HS1 - HS0 + 1 : POS_H_MAX, 0);
             set_position(0, 0);
             measure_position(gh, gv, e);
             if (gh != gh0 || gv != gv0) fail("position: 0,0 is not where it started");
+        end
+
+        // the width slider: each end of the menu's range (a default range
+        // where the menu has no width entry, to keep the stage proven), with
+        // the picture centred between the syncs by H Position as a player
+        // would; then at the worst corners, where it may be cropped but must
+        // never reach a sync or the colour burst
+        begin
+            int gh0, gv0, e0, gh, gv, e, dh_c, front, back;
+            int ps[2];
+            int cs[2] = '{POS_H_MAX, POS_H_MIN};
+            front = ((HS0 - X1 - 1) % HTOTAL + HTOTAL) % HTOTAL;
+            back  = ((X0 - HS1) % HTOTAL + HTOTAL) % HTOTAL - (CB_END + APD - 1) / APD;
+            // with no width entry, the widest stretch this raster has room for
+            // (up to 10%), so the stage stays proven where a +10% line would
+            // run into a sync (this core's 15 kHz raster has 17 dots of room)
+            ps[0] = (SIZE_MAX > 0) ? SIZE_MAX
+                  : ((front + back) * 100 / W < 10) ? (front + back) * 100 / W : 10;
+            ps[1] = (SIZE_MIN < 0) ? SIZE_MIN : -10;
+            if (SIZE_MAX == 0) $display("width: no width slider in interact.json; trying +%0d%% and -10%%", ps[0]);
+            dh_c  = (front - back) / 2;
+            dh_c  = (dh_c < POS_H_MIN) ? POS_H_MIN : (dh_c > POS_H_MAX) ? POS_H_MAX : dh_c;
+            $display("width: %0d dots before hsync, %0d clear after it; centred at H Position %0d", front, back, dh_c);
+            set_position(dh_c, 0);
+            measure_position(gh0, gv0, e0);
+            for (int i = 0; i < 2; i++) begin
+                set_size(ps[i]);
+                check_width(ps[i], gh0);
+                measure_position(gh, gv, e);
+                $display("width %0d%%: %0d lines from vsync to the picture (%0d at 0), csync low for %0d clocks of picture",
+                         ps[i], gv, gv0, e);
+                if (gv != gv0) fail("width: the picture moved vertically");
+                if (e != 0) fail("width: the picture reaches a sync");
+                write_settings(settings(1'b1, 5'h00, 4'd0, 4'h5, 1'b0));
+                check_svga();                        // a scandoubler mode: untouched
+                write_settings(settings(1'b1, 5'h00, 4'd0, 4'h0, 1'b0));
+            end
+            set_size(0);
+            measure_position(gh, gv, e);
+            if (gh != gh0 || gv != gv0) fail("width: 0 is not where it started");
+            for (int i = 0; i < 2; i++) begin
+                set_position(cs[i], 0);
+                set_size(ps[0]);
+                measure_position(gh, gv, e);
+                $display("width %0d%% at H Position %0d: csync low for %0d clocks of picture, %0d clocks from hsync's end to the picture (burst %0d)",
+                         ps[0], cs[i], e, gh - (HS1 - HS0) * APD, CB_END);
+                if (e != 0) fail("width: the picture reaches a sync at a corner");
+                if (gh - (HS1 - HS0) * APD < CB_END) fail("width: the picture reaches the colour burst at a corner");
+                set_size(0);
+            end
+            set_position(0, 0);
+            check_rgbs();
         end
 
         write_settings(settings(1'b1, 5'h00, 4'd0, 4'h5, 1'b0));   // SC 0% RGBHV

@@ -14,9 +14,10 @@
 #          general[1] = clk_vid       16.0 MHz  dot clock, exactly clk_sys / 6
 #          general[2] = clk_vid 90deg 16.0 MHz
 #          general[3]                 96.0 MHz  SDRAM pin clock, phase shifted
-#          general[4] = clk_ana       64.0 MHz  the Analogizer's (pocket_analogizer.sv):
-#                                               clk_sys * 2 / 3, the least that is
-#                                               four times the dot rate.  In this group:
+#          general[4] = clk_ana       48.0 MHz  the Analogizer's (pocket_analogizer.sv):
+#                                               clk_sys / 2, in phase, five clocks to
+#                                               the 9.6 MHz dot of the 15 kHz picture
+#                                               ana_15k.sv makes.  In this group:
 #                                               the pixel hand-over into it is a held
 #                                               register under a toggle, timed as the
 #                                               related-clock path it is.  With

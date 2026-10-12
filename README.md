@@ -162,28 +162,33 @@ Shape" is "Wide" (the cabinet's 4:3, or 3:4 rotated) or "Tall" (the Pocket's
 ## Analogizer
 
 The core supports RndMnkIII's [Analogizer](https://github.com/RndMnkIII/Analogizer)
-adapter: the board's own picture out of the VGA port, and SNAC controllers
-in place of the Pocket's. **The picture is the board's medium-resolution
-signal: 512x384 visible, 25.0 kHz lines, 60.1 Hz** -- a System 2 cabinet's
-monitor, which no 15 kHz television or PVM syncs to. What each video mode
-needs:
+adapter: the game's picture out of the VGA port for a 15 kHz monitor or
+television, and SNAC controllers in place of the Pocket's. The board's own
+picture is a medium-resolution monitor's (512x384, 25.0 kHz lines), which a
+15 kHz set cannot show -- on a PVM it came out as about seven interlaced
+copies of the screen -- so the core converts it: **192p at 15.75 kHz and
+the board's 60.1 Hz**, each line one pair of the board's 384, blended (the
+default; nothing one line thin vanishes and nothing flickers) or, with
+"Analogizer: On, Sharp", the pair's even line. It is progressive and
+frame-locked, so it is rock steady: nothing is interlaced, dropped or torn.
+The Pocket's own screen is unchanged.
 
-| Analogizer Video | line rate | needs |
+| Analogizer Video | line rate | for |
 |---|---|---|
-| RGBS, RGsB, YPbPr | 25.0 kHz | a medium-resolution (25 kHz) or tri-sync arcade monitor, a multisync broadcast monitor that takes 25 kHz, or a scaler that accepts it |
-| Scandoubler (and 25/50/75%, HQ2x) | 50.0 kHz, 832 lines at 60.1 Hz | a multisync PC CRT that reaches 50 kHz (most 1024x768-class ones do) |
+| RGBS, RGsB, YPbPr | 15.75 kHz | a PVM, an arcade monitor, a TV with RGB (SCART) or component |
+| Y/C NTSC | 15.75 kHz | a TV's S-Video input (needs an active Y/C adapter) |
+| Scandoubler, Scandoubler HQ2x | 31.5 kHz | a VGA monitor |
 
-Y/C is not offered: no television takes 25 kHz lines. It is set up in the
-core's own menu (Analogizer, Analogizer Video, SNAC Adapter, SNAC
-Assignment, and H and V Position to centre the picture); with "Analogizer"
-off, the default, the core is unchanged. The picture is not rotated: APB
-comes out on its side, as its cabinet's monitor was mounted. Because the
-core declares a cartridge adapter, the Pocket powers the slot: take any game
-cartridge out first. SNAC pads replace the D-pad and buttons; steering,
-handlebars and the 720 stick then come from the pad's d-pad (the steering
-rate from "Steering Speed"), and a dock pad's analog stick is not involved.
-`docs/analogizer.md` has the modes, the controller assignments, and what has
-and has not been checked (the path is proven in simulation only).
+It is set up in the core's own menu (Analogizer, Analogizer Video, SNAC
+Adapter, SNAC Assignment, and H and V Position to centre the picture); with
+"Analogizer" off, the default, the core is unchanged. The picture is not
+rotated: APB comes out on its side, as its cabinet's monitor was mounted.
+Because the core declares a cartridge adapter, the Pocket powers the slot:
+take any game cartridge out first. SNAC pads replace the D-pad and buttons;
+steering, handlebars and the 720 stick then come from the pad's d-pad (the
+steering rate from "Steering Speed"), and a dock pad's analog stick is not
+involved. `docs/analogizer.md` has the modes, the controller assignments, and
+what has and has not been checked.
 
 Settings and high scores (the board's EEPROM) are saved to
 `Saves/atarisy2/plasticbugs.atarisy2/<game>.sav`, one file per game.

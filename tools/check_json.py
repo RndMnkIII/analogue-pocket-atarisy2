@@ -30,13 +30,14 @@ So this checks the things the firmware cares about and a parser does not:
     whole image flickering;
   * the files are no larger than the largest this firmware is known to
     accept, because size is the one limit that cannot be read off the file,
-    no list has more than 16 options, and the menu no more entries than
-    Analogue documents (the survey below);
+    interact.json has no more options than any core that loads (the
+    survey below), and the menu no more entries than Analogue documents;
   * a slider's defaultval lies between its min and max;
   * an Analogizer core's menu and package agree (docs/analogizer.md): its
     interact.json entries at 0xF7000000 each write only inside their
     mask, one of them sets the enable (bit 5), the picture-position
-    sliders at 0xF7000004/8 fit the 8 signed bits read, no data slot also writes
+    sliders at 0xF7000004/8 and the width slider at 0xF700000C fit the 8
+    signed bits read, no data slot also writes
     0xF7000000 (a file loaded there would overwrite the menu's word), and
     the cartridge port is powered.  Any of those wrong and the Pocket loads
     the core happily while the adapter stays dark or ignores the menu.
@@ -57,7 +58,8 @@ import sys
 #     variables      up to 14      option values   up to 0x00C00000
 #     bytes          up to 7,597   options a list  up to 16
 #     longest name   26            defaultval      0..3
-#     options in the whole file    up to 52
+#     options in the whole file    up to 52 then; 68 loads, 70 does not
+#                                  (measured since: HW_OPTS_MAX below)
 #
 # The 23 characters an earlier version of this file called a limit was a
 # guess, and wrong: OpenJazz ships a 26-character name and loads.
@@ -66,17 +68,12 @@ import sys
 # 16 UI entries from interact.json can be shown", and no more than 20
 # interact and data entries together.  The survey's 14 is only the most any
 # installed core happened to have.
-#
-# Two of the survey's numbers are this core's own, and it has outgrown both.
-# Bytes: its 0.3.x interact.json (7b8ca5a, Paperboy and 720 added) is 11,568
-# bytes, and those games play on the Pocket with it, so that is what is known
-# to load.  Options in the whole file: Analogue's interact.json docs say a
-# list "can hold up to 16 of its own possible options", and that these do not
-# count toward the overall limit -- so the per-list 16 is checked and the
-# total is not.  More than the 52 options seen on an installed core is
-# documented, not yet seen: with the Analogizer this file has 70.
 NAME_MAX = 26
 OPTS_MAX = 16
+# One of the survey's numbers is this core's own, and it has outgrown it.
+# Bytes: its 0.3.x interact.json (7b8ca5a, Paperboy and 720 added) is 11,568
+# bytes, and those games play on the Pocket with it, so that is what is known
+# to load here.
 SIZE_MAX = 11568       # this core's 0.3.x file, which loads (above)
 VARS_MAX = 16          # Analogue's documented limit
 ENTRIES_MAX = 20       # interact variables and data slots together
@@ -277,15 +274,18 @@ def main(argv):
             a = str(v.get('address', '')).lower()
             if not a.startswith('0xf70000') or a == '0xf7000000':
                 continue
-            if a not in ('0xf7000004', '0xf7000008'):
+            if a not in ('0xf7000004', '0xf7000008', '0xf700000c'):
                 fault(ij, f'{v.get("name")!r} writes {v.get("address")}; the Analogizer '
-                          f'reads only 0xF7000000, 0xF7000004 and 0xF7000008')
+                          f'reads only 0xF7000000, 0xF7000004, 0xF7000008 and 0xF700000C')
                 continue
             g = v.get('graphical', {})
             if (v.get('type') != 'slider_u32' or not g.get('signed')
                     or not -127 <= g.get('min', 0) <= 0 <= g.get('max', 0) <= 127):
-                fault(ij, f'{v.get("name")!r}: a picture position is a signed slider '
-                          f'from -127..0 to 0..127 (pocket_analogizer reads 8 bits)')
+                fault(ij, f'{v.get("name")!r}: a picture position or width is a signed '
+                          f'slider from -127..0 to 0..127 (pocket_analogizer reads 8 bits)')
+            if a == '0xf700000c' and g.get('min', 0) < -50:
+                fault(ij, f'{v.get("name")!r}: a width below -50% would skip more than '
+                          f'every other dot')
         if ana and not enable:
             fault(ij, 'no Analogizer entry sets the enable (bit 5 of 0xF7000000): '
                       'the adapter would never turn on')
