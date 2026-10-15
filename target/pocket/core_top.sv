@@ -1017,26 +1017,29 @@ module core_top
                    .spin_ccw(p1_btn_l1), .spin_cw(p1_btn_r1), .stick_active(j1_up | j1_down | j1_left | j1_right),
                    .stick_x(j1_lx), .stick_y(j1_ly), .rotate(rot720), .center(ctr720));
     //! The accelerator: the face buttons and R1 floor it, L1 is half throttle
-    //! (the pedal reads 0x3f up, 0x00 floored, so half is 0x20; a full press
-    //! wins over a half one)
+    //! (a full press wins over a half one).  The values are per game:
+    //!  * the Sprints read MAME's port: PORT_MINMAX(0x00,0x3f) PORT_INVERT over
+    //!    0xff, so 0xff up, 0xc0 floored, 0xe0 half.  Measured in MAME: the
+    //!    untouched port reads 0xff and the track-select screen waits for the
+    //!    pedal; held at 0x3f the race starts by itself.  0.3.1-0.3.4 fed every
+    //!    game 0x3f up, and on the Pocket the Sprints' gas was pinned.
+    //!  * APB keeps 0x3f up, 0x00 floored, 0x20 half: its pedal calibration
+    //!    (docs/hardware.md 7.6) wraps on 0xff and drives the car by itself
+    //!    until the pedal has moved once, and 0x3f idle parks it as MAME does.
     wire       gas1 = g_apb ? (p1_btn_b | p1_btn_x | p1_btn_r1)          // A and Y are APB's buttons
                              : (p1_btn_a | p1_btn_b | p1_btn_x | p1_btn_y | p1_btn_r1);
     wire       gas2 = p2_btn_a | p2_btn_b | p2_btn_x | p2_btn_y | p2_btn_r1;
     wire       gas3 = c3[4] | c3[5] | c3[6] | c3[7] | c3[9];
     wire       half1 = p1_btn_l1, half2 = p2_btn_l1, half3 = c3[8];
-    wire [7:0] ped1 = gas1 ? 8'h00 : half1 ? 8'h20 : 8'h3f;
-    wire [7:0] ped2 = gas2 ? 8'h00 : half2 ? 8'h20 : 8'h3f;
-    wire [7:0] ped3 = gas3 ? 8'h00 : half3 ? 8'h20 : 8'h3f;
+    wire [7:0] ped1 = g_apb ? (gas1 ? 8'h00 : half1 ? 8'h20 : 8'h3f)
+                            : (gas1 ? 8'hc0 : half1 ? 8'he0 : 8'hff);
+    wire [7:0] ped2 = gas2 ? 8'hc0 : half2 ? 8'he0 : 8'hff;    // the Sprints' players 2 and 3
+    wire [7:0] ped3 = gas3 ? 8'hc0 : half3 ? 8'he0 : 8'hff;
     //! Paperboy's handlebars: the stick's X/Y when it is off centre, else
     //! the D-pad as full deflection (MAME's AD_STICK: 0x10 .. 0x80 .. 0xf0)
     wire [7:0] hb_x = (j1_left | j1_right) ? j1_lx : p1_left ? 8'h10 : p1_right ? 8'hf0 : 8'h80;
     wire [7:0] hb_y = (j1_up | j1_down)    ? j1_ly : p1_up   ? 8'h10 : p1_down  ? 8'hf0 : 8'h80;
-    //! Pedals: the ADC reads 0x3f with the pedal up and 0x00 floored, MAME's
-    //! analog port (PORT_MINMAX 0x00-0x3f, inverted) as a player drives it.
-    //! Not 0xff: that is only what an untouched port reads in a headless MAME,
-    //! and APB's pedal calibration (docs/hardware.md 7.6) wraps on it and
-    //! drives the car by itself until the pedal has moved once.
-    reg  [7:0] pedal0 = 8'h3f, pedal1 = 8'h3f, pedal2 = 8'h3f;
+    reg  [7:0] pedal0 = 8'hff, pedal1 = 8'h3f, pedal2 = 8'hff;    // pedal1 is APB's
     reg  [7:0] leta0_q = 8'hff, leta1_q = 8'hff, leta2_q = 8'hff;    // Paperboy has no LETA counters: its ports read 0xff
     always @(posedge clk_sys) begin
         pedal0 <= g_720 ? 8'hff : g_pb ? hb_x : ped1;    // 720's ADCs are unused (read 0xff)

@@ -74,7 +74,7 @@ local out = os.getenv("OUT") or "artifacts/traces/t11.txt"
 local start_f = tonumber(os.getenv("START") or "0")
 local nframes = tonumber(os.getenv("FRAMES") or "3")
 local frames = 0
--- optional inputs so a window can cover gameplay: COIN=frame START=frame PEDAL=n (the port value, no inversion: 192 = 0xc0 floored, 63 = 0x3f as the existing captures) WHEEL=n
+-- optional inputs so a window can cover gameplay: COIN=frame START=frame PEDAL=n (written with set_value: clamped to 0..0x3f, no inversion, so 63, 192 and 255 all feed 0x3f -- a floored pedal to the Sprints; docs/hardware.md 7.6) WHEEL=n
 local ports = m.ioport.ports
 local coin_f  = tonumber(os.getenv("COIN") or "-1")
 local startb_f = tonumber(os.getenv("STARTBTN") or "-1")

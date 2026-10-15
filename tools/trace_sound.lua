@@ -3,7 +3,7 @@
 -- write (15a0), 6502 command read (1860), response write (1874), YM2151
 -- write (1850/1851), POKEY write (1800-180f, 1830-183f), mixer (187a), sound
 -- enable (187e) and IRQ ack (1878). Run with -wavwrite for the audio.
---   OUT=file FRAMES=n COIN=frame STARTBTN=frame PEDAL=n (the port value, no inversion: 192 = 0xc0 floored, 63 = 0x3f as the existing captures) WHEEL=n START_FIELD=name (the start button, "1 Player Start"; APB has none: its buttons are "P1 Button 2" / "P1 Button 3")
+--   OUT=file FRAMES=n COIN=frame STARTBTN=frame PEDAL=n (written with set_value: clamped to 0..0x3f, no inversion, so 63, 192 and 255 all feed 0x3f -- a floored pedal to the Sprints; docs/hardware.md 7.6) WHEEL=n START_FIELD=name (the start button, "1 Player Start"; APB has none: its buttons are "P1 Button 2" / "P1 Button 3")
 local m = manager.machine
 local main = m.devices[":maincpu"].spaces["program"]
 local snd = m.devices[":audiocpu"].spaces["program"]

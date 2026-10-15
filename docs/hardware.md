@@ -181,8 +181,7 @@ and the port inverts it, 0xff -> 0xc0, so the game never sees less than
 and benches that use `PEDAL=63` feed the game 0x3f. Super Sprint takes
 that as pressed; APB, which reads the pedal as a throttle, takes anything
 below 0xc0 as a hard brake and creeps on its own at 0xff, which is how the
-Pocket showed the mistake. `PEDAL=192` is the faithful floored value for
-new captures.) Channels 3-7 read 0xff. A conversion takes
+Pocket showed the mistake. `PEDAL=192` does not give 0xc0: `set_value` clamps it to 0x3f (7.6) -- a floored pedal either way.) Channels 3-7 read 0xff. A conversion takes
 `1 + 1 + 64` ADC clocks (~106 us at 625 kHz) after the start write; the T11
 reads the result at 1400 later. MAME's ADC0808 loads its SAR with the
 selected input one ADC clock after the start (`STATE_CONVERSION_READY`)
@@ -464,19 +463,25 @@ instantiates it always (`modules/sound-tms5220`, d18c7db's VHDL from MAME's
   the chip busy; a model that let /READY return at once accepted one byte
   more per interrupt and fed the chip a third faster than MAME.
 * **The pedals** (ADC 0-2; APB's on ADC 1): MAME's port is `PORT_MINMAX
-  (0x00, 0x3f)` inverted, so as a player drives it the ADC reads **0x3f
-  with the pedal up and 0x00 floored**, and the core feeds those. An
-  untouched port in a headless MAME reads 0xff instead, which is what the
-  Lua-driven captures carry (`PEDAL=63` in a trace sets 0x3f, pressed) and
-  what the core fed before 0.3.1. APB cannot take 0xff: its pedal code
-  (`053142` octal, `BISB @#012000`) keeps 255 - ADC and tracks the smallest
-  and largest values seen since the game started, and with 0xff the pedal is
-  0 and its `pedal - 1` wraps to 0xffff, which reads as "above the minimum",
-  so the game writes full gas until the pedal has moved once -- the car
-  drives itself and crashes (MAME's frame 1240 with an untouched port shows
-  the demerit card at 48 MPH; held at 0x3f or 0x20 it sits parked at 0 MPH,
-  as it does in MAME with a keyboard). A press before the game starts does
-  not count; the range is tracked per game.
+  (0x00, 0x3f) PORT_INVERT` over mask 0xff, so the game reads **0xff with the
+  pedal up and 0xc0 floored** (measured: the untouched port reads 0xff). A
+  Lua `set_value(n)` is not a key press: it writes n clamped to 0..0x3f with
+  **no** inversion, so `PEDAL=63`, `192` and `255` in a trace all feed 0x3f --
+  and **the Sprints take 0x3f as a floored pedal** (measured: held at any of
+  the three, Super Sprint's track-select screen starts the race by itself;
+  untouched, it waits at "PRESS PEDAL TO START RACE"). 0.3.1 read those
+  traces as "0x3f is the pedal up" and fed every game 0x3f up / 0x00 floored;
+  on the Pocket that pinned the Sprints' gas (0.3.1-0.3.4). The core now feeds
+  the Sprints 0xff up, 0xc0 floored, 0xe0 half (as 0.3.0, which was played
+  and confirmed), and APB alone 0x3f up / 0x00 floored / 0x20 half. APB's
+  pedal code (`053142` octal, `BISB @#012000`) keeps 255 - ADC and tracks the
+  smallest and largest values seen since the game started; with 0xff the
+  pedal is 0 and its `pedal - 1` wraps to 0xffff, which reads as "above the
+  minimum", so the game writes full gas until the pedal has moved once -- the
+  car drives itself and crashes (MAME's frame 1240 with an untouched port
+  shows the demerit card at 48 MPH; with the port set to 0x3f it sits parked
+  at 0 MPH). A press before the game starts does not count; the range is
+  tracked per game.
 * **sound reset** (T11 15a0) 0->1 edge: MAME calls `tms5220->reset()` in
   place of the stream of 0xff the board really feeds the chip; the core holds
   /WS and /RS low for 16 chip clocks, which the chip takes as a reset. A
