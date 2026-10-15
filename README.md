@@ -20,7 +20,14 @@ in software.
 | Paperboy (1984) | `paperboy` | plays on the Pocket; slapstic 105, speech, handlebars on two ADC channels: image byte-exact, T11 cycle-exact, the video gate states pixel-identical and the boot too but for one small element, the sound board's 15 s identical to MAME's log |
 | 720 Degrees (1986) | `720` | plays on the Pocket; slapstic 107, speech, the rotating joystick on two LETA counters: image byte-exact, T11 cycle-exact over the boot and a park demo, the attract states in the video gate pixel-identical, the sound board's POKEYs and speech stream identical to MAME's log (the RANDOM bytes it reports differ because MAME's are its scheduler's, not the chip's) |
 
-## Status (0.3.4)
+## Status (0.4.0)
+
+0.4.0 adds Analogizer support (below): the picture on a CRT at 15 kHz,
+192p, and SNAC controllers through the cartridge slot. It also fixes the
+Sprints' gas, pinned to the floor since 0.3.1: 0.3.1 fed every game 0x3f
+with the pedal up, which Super Sprint and Championship Sprint read as
+floored. They are back to MAME's values, 0xff up and 0xc0 floored (0xe0
+half); APB keeps 0x3f up and 0x00 floored (docs/hardware.md 7.6).
 
 0.3.3 and 0.3.4 fix the ROM recipes only (the core is 0.3.2's): the interleave
 maps follow the MRA convention, and each part carries one CRC, current MAME's,
@@ -29,8 +36,8 @@ so standard MRA tools build every image from current merged romsets.
 0.3.2 ships the platform's own image on the Pocket (the earlier one was a
 placeholder).
 
-0.3.1 feeds the pedals as MAME's port reads them when a player drives it,
-0x3f up and 0x00 floored (0xff, what an untouched port reads in a headless
+0.3.1 feeds the pedals 0x3f up and 0x00 floored (right for APB, wrong for
+the Sprints: fixed in 0.4.0) (0xff, what an untouched port reads in a headless
 MAME, made APB's pedal calibration wrap and drive the car by itself at the
 start of a game until the pedal had moved once), and gives the Sprints and
 APB a half-throttle button: L is half gas, the face buttons and R floor it.

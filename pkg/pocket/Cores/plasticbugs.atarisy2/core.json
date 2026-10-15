@@ -9,8 +9,8 @@
       "description": "Atari System 2 arcade core: Super Sprint, Championship Sprint, APB, Paperboy, 720 Degrees",
       "author": "plasticbugs",
       "url": "https://github.com/plasticbugs/analogue-pocket-atarisy2",
-      "version": "0.3.4",
-      "date_release": "2026-09-05"
+      "version": "0.4.0",
+      "date_release": "2026-10-15"
     },
     "framework": {
       "target_product": "Analogue Pocket",
