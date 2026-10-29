@@ -1012,12 +1012,12 @@ module core_top
         .err_count(cab_err));
     wire        cab_live = cab_sel && cab_present;
     wire  [7:0] cab_wheel, cab_ped_sprint, cab_ped_apb;
-    wire        cab_coin1, cab_coin2, cab_start, cab_test, cab_hi_gear;
+    wire        cab_coin1, cab_action, cab_start, cab_test, cab_hi_gear;
     ss_cab_merge cab_merge (
         .clk(clk_sys), .reset(ss_reset), .live(cab_live),
         .cab_lines(cab_lines), .cab_gas(cab_gas), .gain(mod_sw1[3:2]), .rev(mod_sw0[0]),
         .wheel(cab_wheel), .pedal_sprint(cab_ped_sprint), .pedal_apb(cab_ped_apb),
-        .coin1(cab_coin1), .coin2(cab_coin2), .start(cab_start), .test(cab_test),
+        .coin1(cab_coin1), .action(cab_action), .start(cab_start), .test(cab_test),
         .hi_gear(cab_hi_gear));
 
     //! Controls. Each player has a steering wheel (a quadrature counter the
@@ -1106,9 +1106,9 @@ module core_top
         g_cs   <= (cfg_game == 8'd3);
         g_pb   <= (cfg_game == 8'd4);
         g_720  <= (cfg_game == 8'd5);
-        starts <= (g_pb | g_720) ? {1'b0, p1_btn_b, p1_btn_a | cab_start} : {c3[15], p2_start, p1_start | cab_start};
-        coins  <= (g_apb | g_cs | g_pb | g_720) ? {p2_select | cab_coin2, p1_select | cab_coin1, 1'b0}
-                                                : {c3[14], p2_select | cab_coin2, p1_select | cab_coin1};
+        starts <= (g_pb | g_720) ? {1'b0, p1_btn_b, p1_btn_a | cab_start | cab_action} : {c3[15], p2_start, p1_start | cab_start | cab_action};
+        coins  <= (g_apb | g_cs | g_pb | g_720) ? {p2_select, p1_select | cab_coin1, 1'b0}
+                                                : {c3[14], p2_select, p1_select | cab_coin1};
         btn2   <= g_apb & (p1_btn_y | cab_hi_gear);          // the cabinet's gear lever in HI is APB's button 2
         btn3   <= g_apb & (p1_btn_a | cab_start);              // siren / start
     end

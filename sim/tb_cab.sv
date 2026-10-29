@@ -45,10 +45,10 @@ module tb_cab;
 
     logic [1:0] gain = 0; logic rev = 0;
     wire live = enable && present;
-    wire [7:0] wheel, ped_s, ped_a; wire c1, c2, st, tst, hig;
+    wire [7:0] wheel, ped_s, ped_a; wire c1, c2, st, tst, hig;   // c2 is the action button now
     ss_cab_merge #(.WHEEL_Q8(256)) m (.clk(clk), .reset(reset), .live(live), .cab_lines(lines), .cab_gas(gas), .gain(gain), .rev(rev),
                     .wheel(wheel), .pedal_sprint(ped_s), .pedal_apb(ped_a),
-                    .coin1(c1), .coin2(c2), .start(st), .test(tst), .hi_gear(hig));
+                    .coin1(c1), .action(c2), .start(st), .test(tst), .hi_gear(hig));
 
     integer fails = 0;
     task check(input string what, input integer got, input integer exp);
@@ -86,7 +86,7 @@ module tb_cab;
 
         // switches (0 = closed)
         sw[3] = 0; settle; check("coin1", c1, 1); sw[3] = 1;
-        sw[4] = 0; settle; check("coin2", c2, 1); sw[4] = 1;
+        sw[4] = 0; settle; check("action (COIN2 line)", c2, 1); sw[4] = 1;
         sw[5] = 0; settle; check("start", st, 1); sw[5] = 1;
         sw[7] = 0; settle; check("test", tst, 1); sw[7] = 1;
         sw[6] = 0; settle; check("service is not self-test", tst, 0); sw[6] = 1;

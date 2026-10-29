@@ -46,7 +46,7 @@ module ss_cab_merge #(
     output logic [7:0] wheel,        // LETA position, turning right counts up
     output wire  [7:0] pedal_sprint, // 0xff released .. 0xc0 floored
     output wire  [7:0] pedal_apb,    // 0x3f released .. 0x00 floored
-    output wire        coin1, coin2, start, test, hi_gear
+    output wire        coin1, action, start, test, hi_gear   // action: the COIN2 line, the G25's red 3
 );
     // ---- the wheel
     logic st2_q = 1'b1;
@@ -82,7 +82,8 @@ module ss_cab_merge #(
 
     // ---- the switches (the adapter's lines are low when closed)
     assign coin1   = live && !cab_lines[3];
-    assign coin2   = live && !cab_lines[4];
+    // the COIN2 line is the cabinet's action button: the G25 shifter's red 3 (Super Sprint has one coin slot a player)
+    assign action  = live && !cab_lines[4];
     assign start   = live && !cab_lines[5];
     assign test    = live && !cab_lines[7];
     assign hi_gear = live && !cab_lines[2];
