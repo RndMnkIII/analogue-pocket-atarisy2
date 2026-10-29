@@ -987,6 +987,39 @@ module core_top
     wire [24:0] dl_addr     = ioctl_addr[24:0];
     wire  [7:0] dl_data     = ioctl_data;
 
+    //! The Pole Position cabinet adapter on the Analogizer's SNAC port (menu:
+    //! SNAC Adapter = Cabinet adapter; hw/cabinet_adapter in
+    //! RndMnkIII/PocketPolePositionII).  pp_cab_io clocks and reads its 40-bit
+    //! frame on clk_sys (96 MHz: HALF 16, LATCH 96, GAP 96 = 3 MHz CLK, 1 us
+    //! gaps); ss_cab_merge turns the wheel's ST1/ST2 into the LETA position,
+    //! the pedal into the Sprints' and APB's codes, and the switches into
+    //! coins, start and self-test.  While it is selected and its frames arrive
+    //! (cab_live) player 1's wheel, pedal, coin 1/2, start and self-test are
+    //! the cabinet's, merged with the Pocket's (a switch closed on either
+    //! side is closed; the pedal is the deeper of the two).
+    wire        cab_sel;                  // selected, with the Analogizer on (clk_sys)
+    wire  [7:4] cab_bk0_in;               // SNAC bank 0 as it is, from the Analogizer
+    wire        cab_latch, cab_sclk;
+    wire  [7:0] cab_lines, cab_gas, cab_ble;
+    wire        cab_present, cab_frame_ok, cab_lane_b;
+    wire [15:0] cab_err;
+    pp_cab_io #(.HALF(16), .LATCH_W(96), .GAP(96)) cab_io (
+        .clk(clk_sys), .reset(ss_reset), .enable(cab_sel),
+        .latch(cab_latch), .sclk(cab_sclk),
+        .sdata(cab_bk0_in[7]), .sdata_b(cab_bk0_in[5]),
+        .lines(cab_lines), .gas(cab_gas), .ble(cab_ble),
+        .present(cab_present), .frame_ok(cab_frame_ok), .lane_b(cab_lane_b),
+        .err_count(cab_err));
+    wire        cab_live = cab_sel && cab_present;
+    wire  [7:0] cab_wheel, cab_ped_sprint, cab_ped_apb;
+    wire        cab_coin1, cab_coin2, cab_start, cab_test, cab_hi_gear;
+    ss_cab_merge cab_merge (
+        .clk(clk_sys), .reset(ss_reset), .live(cab_live),
+        .cab_lines(cab_lines), .cab_gas(cab_gas), .gain(mod_sw1[3:2]), .rev(mod_sw0[0]),
+        .wheel(cab_wheel), .pedal_sprint(cab_ped_sprint), .pedal_apb(cab_ped_apb),
+        .coin1(cab_coin1), .coin2(cab_coin2), .start(cab_start), .test(cab_test),
+        .hi_gear(cab_hi_gear));
+
     //! Controls. Each player has a steering wheel (a quadrature counter the
     //! game reads as an 8-bit position), an accelerator pedal (an ADC channel:
     //! 0xff released, 0x3f floored) and a Start button; the cabinet has three
@@ -1031,8 +1064,10 @@ module core_top
     wire       gas2 = p2_btn_a | p2_btn_b | p2_btn_x | p2_btn_y | p2_btn_r1;
     wire       gas3 = c3[4] | c3[5] | c3[6] | c3[7] | c3[9];
     wire       half1 = p1_btn_l1, half2 = p2_btn_l1, half3 = c3[8];
-    wire [7:0] ped1 = g_apb ? (gas1 ? 8'h00 : half1 ? 8'h20 : 8'h3f)
-                            : (gas1 ? 8'hc0 : half1 ? 8'he0 : 8'hff);
+    wire [7:0] ped1_pk = g_apb ? (gas1 ? 8'h00 : half1 ? 8'h20 : 8'h3f)
+                               : (gas1 ? 8'hc0 : half1 ? 8'he0 : 8'hff);
+    wire [7:0] ped1_cab = g_apb ? cab_ped_apb : cab_ped_sprint;      // the cabinet's pedal, player 1
+    wire [7:0] ped1 = (cab_live && ped1_cab < ped1_pk) ? ped1_cab : ped1_pk;   // lower is deeper in both
     wire [7:0] ped2 = gas2 ? 8'hc0 : half2 ? 8'he0 : 8'hff;    // the Sprints' players 2 and 3
     wire [7:0] ped3 = gas3 ? 8'hc0 : half3 ? 8'he0 : 8'hff;
     //! Paperboy's handlebars: the stick's X/Y when it is off centre, else
@@ -1045,7 +1080,7 @@ module core_top
         pedal0 <= g_720 ? 8'hff : g_pb ? hb_x : ped1;    // 720's ADCs are unused (read 0xff)
         pedal1 <= g_720 ? 8'hff : g_pb ? hb_y : (g_apb ? ped1 : ped2);    // APB reads its pedal on ADC 1
         pedal2 <= ped3;
-        leta0_q <= g_720 ? ctr720 : g_pb ? 8'hff : wheel0;    // 720: the joystick's centre and rotate discs
+        leta0_q <= g_720 ? ctr720 : g_pb ? 8'hff : cab_live ? cab_wheel : wheel0;    // 720: the joystick's centre and rotate discs
         leta1_q <= g_720 ? rot720 : g_pb ? 8'hff : wheel1;
         leta2_q <= (g_pb | g_720) ? 8'hff : wheel2;
     end
@@ -1071,10 +1106,11 @@ module core_top
         g_cs   <= (cfg_game == 8'd3);
         g_pb   <= (cfg_game == 8'd4);
         g_720  <= (cfg_game == 8'd5);
-        starts <= (g_pb | g_720) ? {1'b0, p1_btn_b, p1_btn_a} : {c3[15], p2_start, p1_start};
-        coins  <= (g_apb | g_cs | g_pb | g_720) ? {p2_select, p1_select, 1'b0} : {c3[14], p2_select, p1_select};
-        btn2   <= g_apb & p1_btn_y;
-        btn3   <= g_apb & p1_btn_a;                         // siren / start
+        starts <= (g_pb | g_720) ? {1'b0, p1_btn_b, p1_btn_a | cab_start} : {c3[15], p2_start, p1_start | cab_start};
+        coins  <= (g_apb | g_cs | g_pb | g_720) ? {p2_select | cab_coin2, p1_select | cab_coin1, 1'b0}
+                                                : {c3[14], p2_select | cab_coin2, p1_select | cab_coin1};
+        btn2   <= g_apb & (p1_btn_y | cab_hi_gear);          // the cabinet's gear lever in HI is APB's button 2
+        btn3   <= g_apb & (p1_btn_a | cab_start);              // siren / start
     end
 
     //! Diagnostics from the modifier word: bit 5 overlay, bit 6 SDRAM read
@@ -1115,7 +1151,7 @@ module core_top
         .start        ( starts         ),
         .btn2         ( btn2           ),
         .btn3         ( btn3           ),
-        .service      ( svc_sw         ),
+        .service      ( svc_sw | cab_test ),
         .pedal0       ( pedal0         ),
         .pedal1       ( pedal1         ),
         .pedal2       ( pedal2         ),
@@ -1223,10 +1259,13 @@ module core_top
     generate
         if(USE_ANALOGIZER == 1) begin : analogizer
             // "On, Sharp": bit 16 with the enable (bit 5)
-            reg sharp_74 = 1'b0;
+            reg sharp_74 = 1'b0, cab_74 = 1'b0;
             always @(posedge clk_74a)
-                if (bridge_wr && bridge_addr == 32'hF7000000)
+                if (bridge_wr && bridge_addr == 32'hF7000000) begin
                     sharp_74 <= bridge_wr_data[16] && bridge_wr_data[5];
+                    cab_74   <= bridge_wr_data[17] && bridge_wr_data[5];    // "SNAC Adapter: Cabinet adapter" (menu), Analogizer on
+                end
+            synch_3 sync_cab(cab_74, cab_sel, clk_sys);
             wire        a15_ce, a15_hs, a15_vs, a15_hb, a15_vb;
             wire [23:0] a15_rgb;
             ana_15k u_ana15k (
@@ -1249,6 +1288,7 @@ module core_top
                 .key1(key1), .key2(key2), .key3(key3), .key4(key4),
                 .ena(), .pocket_off(ana_pocket_off),
                 .ps2_code_new(), .ps2_code(),
+                .i_snac_ext(cab_sel), .i_snac_out({cab_sclk, cab_latch}), .o_snac_bk0_in(cab_bk0_in),
                 .cart_tran_bank2(cart_tran_bank2), .cart_tran_bank2_dir(cart_tran_bank2_dir),
                 .cart_tran_bank3(cart_tran_bank3), .cart_tran_bank3_dir(cart_tran_bank3_dir),
                 .cart_tran_bank1(cart_tran_bank1), .cart_tran_bank1_dir(cart_tran_bank1_dir),
@@ -1262,6 +1302,8 @@ module core_top
             assign key3 = cont3_key; assign key4 = cont4_key;
             assign ana_bridge_rd_data = 32'h0;
             assign ana_pocket_off = 1'b0;
+            assign cab_sel = 1'b0;
+            assign cab_bk0_in = 4'h0;
         end
     endgenerate
 

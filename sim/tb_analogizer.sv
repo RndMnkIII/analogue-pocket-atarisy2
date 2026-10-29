@@ -182,6 +182,7 @@ module tb_analogizer;
         .cont1_key(cont1_key), .cont2_key(cont2_key), .cont3_key(cont3_key), .cont4_key(cont4_key),
         .key1(key1), .key2(key2), .key3(key3), .key4(key4),
         .ena(ena), .pocket_off(pocket_off), .ps2_code_new(), .ps2_code(),
+        .i_snac_ext(1'b0), .i_snac_out(2'b00), .o_snac_bk0_in(),
         .cart_tran_bank2(bank2), .cart_tran_bank2_dir(bank2_dir),
         .cart_tran_bank3(bank3), .cart_tran_bank3_dir(bank3_dir),
         .cart_tran_bank1(bank1), .cart_tran_bank1_dir(bank1_dir),

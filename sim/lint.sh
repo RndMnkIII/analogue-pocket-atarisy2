@@ -35,6 +35,9 @@ out=$(verilator --lint-only $FLAGS -Wno-PROCASSWIRE -Wno-BLKANDNBLK -Wno-UNUSEDS
       | grep -v -E '^%Warning[^ ]*: [^ ]*(target/pocket/analogizer|platform/pocket)/' || true)
 if [ -n "$out" ]; then echo "$out"; exit 1; fi
 # the 25 -> 15 kHz converter in front of it, ours, under the full -Wall
+echo "--- cabinet adapter link ---"
+verilator --lint-only $FLAGS --top-module ss_cab_merge target/pocket/ss_cab_merge.sv
+verilator --lint-only $FLAGS -Wno-UNUSEDSIGNAL --top-module pp_cab_io target/pocket/pp_cab_io.sv   # the Pole Position core's file, unchanged
 echo "--- ana_15k ---"
 verilator --lint-only $FLAGS --top-module ana_15k target/pocket/ana_15k.sv
 echo "lint clean"

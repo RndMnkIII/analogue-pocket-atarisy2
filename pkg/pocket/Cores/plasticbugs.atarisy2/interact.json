@@ -203,15 +203,15 @@
         "persist": true,
         "address": "0xF7000000",
         "defaultval": 0,
-        "mask": "0xFFFFFFE0",
+        "mask": "0xFFFDFFE0",
         "options": [
           {"name": "None", "value": "0x00"},
           {"name": "DB15", "value": "0x01"},
           {"name": "NES", "value": "0x02"},
           {"name": "SNES", "value": "0x03"},
           {"name": "PCE Multitap", "value": "0x06"},
-          {"name": "PSX Digital", "value": "0x10"},
-          {"name": "PSX Analog", "value": "0x12"}
+          {"name": "PSX Analog", "value": "0x12"},
+          {"name": "Cabinet adapter", "value": "0x20000"}
         ]
       },
       {

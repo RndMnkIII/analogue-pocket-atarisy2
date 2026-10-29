@@ -17,7 +17,7 @@ cartridge port and not the machine:
 
 | module | upstream | commit |
 |---|---|---|
-| `target/pocket/analogizer/` | RndMnkIII's Analogizer adapter module (`openFPGA_Pocket_Analogizer` 1.4) and the 14 files it instantiates, verbatim, via the pocket-core-template (d9503cc); `analogizer.qip` is ours | https://github.com/RndMnkIII/MiraxPocket, `src/fpga/analogizer/` | 9dfdd2b9bec79fe5ea10e154a0613a0c9d4fe37f; GPL-3.0-or-later (the host core's), `hq2x.sv`, `scandoubler_2.v`, `yc_out_legacy.sv` carry their own GPL headers |
+| `target/pocket/analogizer/` | **(`openFPGA_Pocket_Analogizer.v` carries one local edit: the `i_snac_ext` / `i_snac_out` / `o_snac_bk0_in` hook of the Pole Position core's copy, for the cabinet adapter; docs/analogizer.md)** RndMnkIII's Analogizer adapter module (`openFPGA_Pocket_Analogizer` 1.4) and the 14 files it instantiates, verbatim, via the pocket-core-template (d9503cc); `analogizer.qip` is ours | https://github.com/RndMnkIII/MiraxPocket, `src/fpga/analogizer/` | 9dfdd2b9bec79fe5ea10e154a0613a0c9d4fe37f; GPL-3.0-or-later (the host core's), `hq2x.sv`, `scandoubler_2.v`, `yc_out_legacy.sv` carry their own GPL headers |
 
 `core.qip` includes its own `analogizer.qip`, and `sim/lint.sh` lints it
 behind `target/pocket/pocket_analogizer.sv` with a stand-in for its one VHDL

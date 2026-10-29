@@ -23,7 +23,7 @@ not read that file). The Pocket remembers them for this core.
 |---|---|
 | Analogizer | Off (the default), On, On, Sharp, On, Pocket off, On, Sharp, Pocket off |
 | Analogizer Video | RGBS, RGsB, YPbPr, Y/C NTSC, Scandoubler, Scandoubler HQ2x |
-| SNAC Adapter | None, DB15, NES, SNES, PCE Multitap, PSX Digital, PSX Analog |
+| SNAC Adapter | None, DB15, NES, SNES, PCE Multitap, PSX Analog, Cabinet adapter |
 | SNAC Assignment | the six below |
 | Analogizer H Position | -5 to +12 dots; + moves the picture right |
 | Analogizer V Position | -40 to +27 lines; + moves the picture down |
@@ -215,6 +215,35 @@ dot of the back porch.
 
 The Y/C encoder's subcarrier step and colour-burst window are computed in
 integers from `CLK_HZ`.
+
+### The Pole Position cabinet adapter
+
+Not a SNAC pad but the RP2040 adapter of RndMnkIII/PocketPolePositionII, whose
+frame this core reads itself. Selected by **SNAC Adapter: Cabinet adapter**,
+which is bit 17 of the settings word at `0xF7000000` (type field 0): the
+adapter module ignores bits 16-30, so `core_top` decodes it from the bridge
+write, with the enable (bit 5), as it does Sharp (bit 16); `synch_3` takes it
+to `clk_sys` as `cab_sel`.
+
+| piece | what |
+|---|---|
+| `openFPGA_Pocket_Analogizer.v` | the vendored module gains the hook Pole Position's copy has: `i_snac_ext` hands OUT1/OUT2 to the core (`i_snac_out`), leaves bank 0 and pins 30/31 as inputs and returns bank 0 as it is (`o_snac_bk0_in`). Tied low it is unchanged. The only edit to that file; `pocket_analogizer.sv` passes the three ports through. |
+| `pp_cab_io.sv` | the Pole Position core's `rtl/pp_cab_io.sv`, unchanged, on `clk_sys`: `HALF` 16, `LATCH_W` 96, `GAP` 96 (3 MHz CLK, 1 us gaps; its default parameters are for 49.152 MHz). IN4 is lane A and IN7 lane B, as there. |
+| `ss_cab_merge.sv` | the frame as System 2 controls: ST1/ST2 into the LETA position (a count on each fall of ST2, up with ST1 low, as the 53xx counts; `gain` and `rev` from the menu), the pedal 0..0x90 scaled by 7/16 to 0..0x3f (the Sprints' 0xff-0xc0, APB's 0x3f-0x00), the switches active high. |
+| `core_top.sv` | player 1 only: `leta0_q` takes the cabinet's wheel while `cab_live`, `ped1` the deeper pedal, coins, start, APB's buttons and the service input are ORed. |
+
+The menu is at its limit (80 options and entries together), so adding the
+option meant dropping **PSX Digital**; PSX Analog stays. A saved "PSX Digital"
+falls back to None.
+
+**Checked:** `sim/run_cab.sh` (`sim/tb_cab.sv`): `pp_cab_io` at 96 MHz against a
+model of the adapter's frame (docs/snac_link.md section 3 there), then the
+pedal's three points and past-the-end, each switch, the wheel at the three
+gains in both directions with a turn back, `rev`, and the unplugged state.
+`sim/lint.sh` is clean with the two new files. **Not checked:** the module
+bench `sim/run_analogizer.sh` with the new ports (its bench was edited to tie
+them low; it did not build here for want of the Verilator it needs), a Quartus
+compile and timing, and anything on a Pocket, an Analogizer or a cabinet.
 
 ### Using SNAC in the game's inputs
 

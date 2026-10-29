@@ -197,6 +197,65 @@ steering rate from "Steering Speed"), and a dock pad's analog stick is not
 involved. `docs/analogizer.md` has the modes, the controller assignments, and
 what has and has not been checked.
 
+### Pole Position cabinet adapter
+
+The Analogizer's SNAC port can also carry the controls of a Pole Position
+cabinet: the RP2040 adapter in
+[RndMnkIII/PocketPolePositionII](https://github.com/RndMnkIII/PocketPolePositionII)
+(`hw/cabinet_adapter`) sends the cabinet's steering
+encoder, accelerator and switches over the SNAC lines, and this core reads
+them as player 1's controls. The cabinet's wheel is the same kind of part as
+a Sprint's -- an optical quadrature encoder, free-turning -- and its pedal a
+potentiometer into an ADC, so they map one to one.
+
+To use it:
+
+1. Flash the adapter (Pi Pico or the RP2040 board) and leave its
+   *Settings > SNAC out* on **PolePos**, the default. Wire the cabinet's
+   wheel, pedal and switches as that project's `hw/cabinet_adapter/README.md`
+   says, or use a USB wheel and pedals through the adapter's own settings.
+2. Plug the adapter into the Analogizer's SNAC port with a USB 3.0 A-to-A
+   cable (a cable with the SuperSpeed pairs crossed works too). Set up the
+   Analogizer as for any other use: the SNAC switch in position A, 5 V into
+   its USB-C port, no game cartridge in the Pocket's slot.
+3. In the core's menu set **Analogizer** to *On* (any of its On entries) and
+   **SNAC Adapter** to **Cabinet adapter**. Leave **SNAC Assignment** as it is:
+   it only applies to SNAC pads. The Pocket remembers both.
+4. Load a game. While the adapter's frames are arriving the cabinet's controls
+   work; unplug it and the Pocket's own controls are all there is.
+
+What the cabinet drives, for player 1 (merged with the Pocket's own controls,
+so both work at once: a switch closed on either side is closed, the wheel is
+the cabinet's while it is there, the pedal the deeper of the two):
+
+| Cabinet | Sprints | APB | Paperboy, 720 |
+|---|---|---|---|
+| wheel | wheel | wheel | not used |
+| accelerator | accelerator | accelerator | not used |
+| COIN 1, COIN 2 | coin 1, coin 2 (Super Sprint: left and centre slots) | coins | coins |
+| START | player 1 start | siren (it also starts) | button A (it also starts) |
+| TEST | self-test switch | self-test | self-test |
+| gear lever, HI | not used | button 2 | not used |
+| brake, SERVICE | not used | not used | not used |
+
+Notes:
+
+* The **"Analog Stick" entry's sensitivity** also scales the cabinet's wheel:
+  *less reactive* is one count per two encoder cycles, *more reactive* two per
+  cycle, and the default one. The cabinet's encoder gives about 103 counts a
+  turn of its wheel; how many a Sprint's own encoder gave is not in its manual,
+  so use the entry if the car turns too much or too little. *Reversed* flips
+  the direction if the car steers the wrong way.
+* The pedal is the adapter's, calibrated by it (hold START while it powers
+  up; see its README); the game also tracks the pedal's extremes itself.
+* Only player 1 has a cabinet; players 2 and 3 stay on the dock pads.
+* Pole Position's frame is the one `pp_cab_io` reads in that core
+  (`docs/snac_link.md` there), so any sender that makes it works.
+* **Not tried on hardware.** `sim/run_cab.sh` runs the link against a model of
+  the adapter's frame and the controls' mapping; no cabinet, adapter or
+  Analogizer has driven it yet. The two sides' timing and the encoder's counts
+  per turn are what a first run should look at.
+
 Settings and high scores (the board's EEPROM) are saved to
 `Saves/atarisy2/plasticbugs.atarisy2/<game>.sav`, one file per game.
 
@@ -209,7 +268,7 @@ Settings and high scores (the board's EEPROM) are saved to
 | `docs/verification.md` | what has been checked against MAME, how, with what result |
 | `rtl/` | the core: `ssprint_core.sv` (machine), `ssprint_main.sv` (T11 board), `t11/t11.sv` (the CPU), `slapstic.sv` (types 105-110, MAME's table selected by the image header), `ssprint_video.sv`, `ssprint_sound.sv`, `pokey.sv`, `sdram_ctrl.sv`, `clk_enables.sv`, `dpram_be.sv` / `sdpram.sv` |
 | `modules/` | vendored cores: T65 (6502) and the TMS5220 speech chip, both GHDL-converted VHDL, and jt51 (YM2151) -- `modules/VENDOR.md` |
-| `target/pocket/` | the Pocket top level `core_top.sv` and the controllers built for it: `steer_wheel.sv`, `ctrl_720.sv`; the Analogizer wrapper `pocket_analogizer.sv` and RndMnkIII's module under `analogizer/` (`docs/analogizer.md`) |
+| `target/pocket/` | the Pocket top level `core_top.sv` and the controllers built for it: `steer_wheel.sv`, `ctrl_720.sv`; the Analogizer wrapper `pocket_analogizer.sv` and RndMnkIII's module under `analogizer/` (`docs/analogizer.md`); the Pole Position cabinet adapter's link, `pp_cab_io.sv` and `ss_cab_merge.sv` |
 | `sim/` | Verilator benches: `run_t11.sh`, `run_video.sh`, `run_sound.sh`, `run_system.sh`, `run_analogizer.sh`, `lint.sh` |
 | `tools/` | `mra_build.py` (ROM image) and `check_rom.lua` (checks it against MAME's regions), `render_model.py` (reference frame renderer), MAME Lua probes (`dumpstate.lua`, `trace_t11.lua`, `trace_sound.lua`) and the capture script `capture_states.sh`, `compare_sound.py`, `diff_png.py` / `diff_frames.py`, the two machines' event timelines (`wipe_events.py`, `compare_events.py`), `gen_vhdl_cores.sh` |
 | `*.mra` | the ROM recipes: `ssprint.mra`, `apb.mra`, `csprint.mra`, `paperboy.mra`, `720.mra` |

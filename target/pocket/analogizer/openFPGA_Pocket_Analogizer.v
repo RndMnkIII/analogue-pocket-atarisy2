@@ -153,7 +153,14 @@ module openFPGA_Pocket_Analogizer #(parameter MASTER_CLK_FREQ=50_000_000, parame
     output wire signed [8:0] o_mouse_dx,
     output wire signed [8:0] o_mouse_dy,
     output wire signed [4:0] o_mouse_dz,
-    output wire              o_mouse_ready
+    output wire              o_mouse_ready,
+	//A SNAC device of the core's own (added for the cabinet adapter, see target/pocket/ss_cab_merge.sv)
+	//i_snac_ext = 1 hands the SNAC port to the core: OUT1/OUT2 come from i_snac_out ({OUT2, OUT1}),
+	//bank0 (IN4, IN7, IO3), pin 30 and pin 31 are left as inputs, and o_snac_bk0_in carries bank0 as it
+	//is, asynchronous (conf. A: [7] IN4, [5] IN7, [4] IO3). Tied low, the module is unchanged.
+	input  wire              i_snac_ext,
+	input  wire [1:0]        i_snac_out,
+	output wire [7:4]        o_snac_bk0_in
 );
 
 	//Configuration file dat
@@ -493,9 +500,11 @@ scanlines_analogizer #(0) VGA_scanlines
 
 	//infer tri-state buffers for cartridge data signals
 	//BK0
-	assign cart_tran_bank0         = i_rst_apf | ~analogizer_ena ? 4'hf : ((CART_BK0_DIR) ? CART_BK0_OUT : 4'hZ);     //on reset state set ouput value to 4'hf
-	assign cart_tran_bank0_dir     = i_rst_apf | ~analogizer_ena ? 1'b1 : CART_BK0_DIR;                              //on reset state set pin dir to output
+	wire   bk0_dir                 = CART_BK0_DIR & ~i_snac_ext;                                                    //the core's own SNAC device: bank0 is an input
+	assign cart_tran_bank0         = i_rst_apf | ~analogizer_ena ? 4'hf : ((bk0_dir) ? CART_BK0_OUT : 4'hZ);          //on reset state set ouput value to 4'hf
+	assign cart_tran_bank0_dir     = i_rst_apf | ~analogizer_ena ? 1'b1 : bk0_dir;                                   //on reset state set pin dir to output
 	assign CART_BK0_IN             = cart_tran_bank0;
+	assign o_snac_bk0_in           = cart_tran_bank0;
 	//BK3
 	assign cart_tran_bank3         = i_rst_apf | ~analogizer_ena ? 8'hzz : {Rout[5:0],HsyncOut,VsyncOut};                          //on reset state set ouput value to 8'hZ
 	assign cart_tran_bank3_dir     = i_rst_apf | ~analogizer_ena ? 1'b0  : 1'b1;                                     //on reset state set pin dir to input
@@ -503,16 +512,18 @@ scanlines_analogizer #(0) VGA_scanlines
 	assign cart_tran_bank2         = i_rst_apf | ~analogizer_ena ? 8'hzz : {Bout[0],BLANKnOut,Gout[5:0]};                          //on reset state set ouput value to 8'hZ
 	assign cart_tran_bank2_dir     = i_rst_apf | ~analogizer_ena ? 1'b0  : 1'b1;                                     //on reset state set pin dir to input
 	//BK1
-	assign cart_tran_bank1         = i_rst_apf | ~analogizer_ena ? 8'hzz : {CART_BK1_OUT_P76,video_clk,Bout[5:1]};      //on reset state set ouput value to 8'hZ
+	assign cart_tran_bank1         = i_rst_apf | ~analogizer_ena ? 8'hzz : {(i_snac_ext ? i_snac_out : CART_BK1_OUT_P76),video_clk,Bout[5:1]};      //on reset state set ouput value to 8'hZ
 	assign cart_tran_bank1_dir     = i_rst_apf | ~analogizer_ena ? 1'b0  : 1'b1;                                     //on reset state set pin dir to input
 	//PIN30
-	assign cart_tran_pin30         = i_rst_apf | ~analogizer_ena ? 1'bz : ((CART_PIN30_DIR) ? CART_PIN30_OUT : 1'bZ); //on reset state set ouput value to 4'hf
-	assign cart_tran_pin30_dir     = i_rst_apf | ~analogizer_ena ? 1'b0 : CART_PIN30_DIR;                              //on reset state set pin dir to output
+	wire   pin30_dir               = CART_PIN30_DIR & ~i_snac_ext;                                                   //the core's own SNAC device: IO5 left an input
+	assign cart_tran_pin30         = i_rst_apf | ~analogizer_ena ? 1'bz : ((pin30_dir) ? CART_PIN30_OUT : 1'bZ);      //on reset state set ouput value to 4'hf
+	assign cart_tran_pin30_dir     = i_rst_apf | ~analogizer_ena ? 1'b0 : pin30_dir;                                   //on reset state set pin dir to output
 	assign CART_PIN30_IN           = cart_tran_pin30;
 	assign cart_pin30_pwroff_reset = i_rst_apf | ~analogizer_ena ? 1'b0 : 1'b1;                                      //1'b1 (GPIO USE)
 	//PIN31
-	assign cart_tran_pin31         = i_rst_apf | ~analogizer_ena ? 1'bz : ((CART_PIN31_DIR) ? CART_PIN31_OUT : 1'bZ); //on reset state set ouput value to 4'hf
-	assign cart_tran_pin31_dir     = i_rst_apf | ~analogizer_ena ? 1'b0 : CART_PIN31_DIR;                            //on reset state set pin dir to input
+	wire   pin31_dir               = CART_PIN31_DIR & ~i_snac_ext;                                                   //the core's own SNAC device: IO6 left an input
+	assign cart_tran_pin31         = i_rst_apf | ~analogizer_ena ? 1'bz : ((pin31_dir) ? CART_PIN31_OUT : 1'bZ);      //on reset state set ouput value to 4'hf
+	assign cart_tran_pin31_dir     = i_rst_apf | ~analogizer_ena ? 1'b0 : pin31_dir;                                   //on reset state set pin dir to input
 	assign CART_PIN31_IN           = cart_tran_pin31;
 endmodule
 

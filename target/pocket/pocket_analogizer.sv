@@ -79,6 +79,13 @@ module pocket_analogizer #(
     output wire         ps2_code_new,
     output wire   [7:0] ps2_code,
 
+    // a SNAC device of the core's own (clk): 1 hands the port to the core, which
+    // drives OUT1/OUT2 ({OUT2, OUT1}) and reads bank 0 ([7] IN4, [5] IN7, [4] IO3)
+    // as they are.  Tie i_snac_ext low and the wrapper is the template's.
+    input  wire         i_snac_ext,
+    input  wire   [1:0] i_snac_out,
+    output wire   [7:4] o_snac_bk0_in,
+
     // the cartridge port, straight to core_top's pins
     inout  wire   [7:0] cart_tran_bank2,
     output wire         cart_tran_bank2_dir,
@@ -456,6 +463,7 @@ module pocket_analogizer #(
         .cart_tran_pin31(cart_tran_pin31), .cart_tran_pin31_dir(cart_tran_pin31_dir),
         .DBG_TX(), .o_stb(),
         .o_ps2_code_new(ps2_code_new), .o_ps2_code(ps2_code),
+        .i_snac_ext(i_snac_ext), .i_snac_out(i_snac_out), .o_snac_bk0_in(o_snac_bk0_in),
         .o_mouse_valid(), .o_mouse_btn(), .o_mouse_dx(), .o_mouse_dy(), .o_mouse_dz(),
         .o_mouse_ready()
     );
