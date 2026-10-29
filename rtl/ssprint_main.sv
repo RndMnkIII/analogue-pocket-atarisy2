@@ -70,7 +70,10 @@ module ssprint_main
     // CPU
     // ------------------------------------------------------------------------
     logic [15:0] bus_addr, bus_wdata;
-    logic [15:0] bus_rdata /* verilator public_flat_rd */;
+    logic [15:0] bus_rdata_r;                   // the data the sequencer latches (everything but RAM and ROM)
+    logic [15:0] ram_q, rom_q;                  // the RAM's and the ROM's own synchronous read ports
+    logic        rd_ram, rd_rom;                // which of the three the last access read
+    wire  [15:0] bus_rdata /* verilator public_flat_rd */ = rd_ram ? ram_q : rd_rom ? rom_q : bus_rdata_r;
     logic        bus_rd, bus_wr, bus_ack, bus_fetch;
     logic  [1:0] bus_be;
     logic  [3:0] cp /* verilator public_flat_rd */;
@@ -135,7 +138,6 @@ module ssprint_main
     always_ff @(posedge clk) begin
         if (rom_we) rom[rom_waddr[14:1]][rom_waddr[0]] <= rom_wdata;
     end
-
     // bank select: b = ((data >> 10) & 0x3f) ^ 3; bank = {b5, b4, b1, b0, b3, b2}
     logic [5:0] bank1, bank2;
     wire  [5:0] bsel = bus_wdata[15:10] ^ 6'b000011;
@@ -173,6 +175,23 @@ module ssprint_main
     typedef enum logic [2:0] { B_IDLE, B_V1, B_V2, B_SD, B_DONE } bst_t;
     bst_t bst;
     wire in_idle = (bst == B_IDLE) && req;
+
+    // The RAM and the ROM each have a plain synchronous port, written or read at the first clock of a
+    // one-clock access and nothing else (Quartus 25.1 does not infer them as block RAM when the read sits
+    // inside the bus sequencer's priority chain). bus_rdata picks the port with rd_ram / rd_rom.
+    wire one_clk = in_idle && !sel_bnk && !sel_video;
+    always_ff @(posedge clk) begin
+        if (one_clk && sel_ram && bus_wr && !reset) begin
+            if (bus_be[0]) ram[a[11:1]][0] <= bus_wdata[7:0];
+            if (bus_be[1]) ram[a[11:1]][1] <= bus_wdata[15:8];
+        end
+    end
+    always_ff @(posedge clk) begin
+        if (one_clk) begin
+            ram_q <= ram[a[11:1]];
+            rom_q <= rom[a[14:1]];
+        end
+    end
     // video port: selects while the access is in progress; write only on its first clock
     assign vr_addr  = sel_pal ? {4'd0, a[8:1]} : a[12:1];
     assign vr_be    = bus_be;
@@ -199,7 +218,7 @@ module ssprint_main
             bst <= B_IDLE; brom_req <= 1'b0; bank1 <= 6'd0; bank2 <= 6'd0; irq_en <= 4'd0;
             video_int <= 1'b0; scan_int <= 1'b0; p2portwr <= 1'b0; p2portrd <= 1'b0;
             snd_cpu_reset <= 1'b1;                       // machine_reset: sound_reset_w(1)
-            adc_chan <= '0; adc_sar <= 8'hff; adc_cnt <= '0; wdog <= '0; bus_rdata <= '0; xs_reg <= '0; ys_reg <= '0; xs_sel <= 1'b0;
+            adc_chan <= '0; adc_sar <= 8'hff; adc_cnt <= '0; wdog <= '0; bus_rdata_r <= '0; rd_ram <= 1'b0; rd_rom <= 1'b0; xs_reg <= '0; ys_reg <= '0; xs_sel <= 1'b0;
         end else begin
             // interrupt sources (level flip-flops clocked by their events)
             if (irq_vbl)     video_int <= irq_en[3];
@@ -232,18 +251,11 @@ module ssprint_main
                     end else begin
                         // one-clock devices: answer now
                         bus_ack <= 1'b1; bst <= B_DONE;
-                        bus_rdata <= 16'hffff;
-                        if (sel_ram) begin
-                            bus_rdata <= ram[a[11:1]];
-                            if (bus_wr) begin
-                                if (bus_be[0]) ram[a[11:1]][0] <= bus_wdata[7:0];
-                                if (bus_be[1]) ram[a[11:1]][1] <= bus_wdata[15:8];
-                            end
-                        end
-                        if (sel_rom)   bus_rdata <= rom[a[14:1]];
-                        if (io_adc)    bus_rdata <= {8'hff, adc_sar};
-                        if (io_in0)    bus_rdata <= in0;
-                        if (io_sresp)  begin bus_rdata <= {8'hff, snd_resp}; if (bus_rd) begin p2portwr <= 1'b0; snd_resp_rd <= 1'b1; end end
+                        bus_rdata_r <= 16'hffff;
+                        rd_ram <= sel_ram; rd_rom <= sel_rom;     // the RAM and the ROM: ram_q / rom_q (see above)
+                        if (io_adc)    bus_rdata_r <= {8'hff, adc_sar};
+                        if (io_in0)    bus_rdata_r <= in0;
+                        if (io_sresp)  begin bus_rdata_r <= {8'hff, snd_resp}; if (bus_rd) begin p2portwr <= 1'b0; snd_resp_rd <= 1'b1; end end
                         if (bus_wr) begin
                             // the 8-bit registers sit on the even byte (MAME maps them
                             // as byte handlers at the even address): a write to the odd
@@ -272,8 +284,8 @@ module ssprint_main
                     end
                 end
                 B_V1: bst <= B_V2;
-                B_V2: begin bus_rdata <= vr_rdata; bus_ack <= 1'b1; bst <= B_DONE; end
-                B_SD: if (brom_ack) begin bus_rdata <= brom_rdata; brom_req <= 1'b0; bus_ack <= 1'b1; bst <= B_DONE; end
+                B_V2: begin bus_rdata_r <= vr_rdata; rd_ram <= 1'b0; rd_rom <= 1'b0; bus_ack <= 1'b1; bst <= B_DONE; end
+                B_SD: if (brom_ack) begin bus_rdata_r <= brom_rdata; rd_ram <= 1'b0; rd_rom <= 1'b0; brom_req <= 1'b0; bus_ack <= 1'b1; bst <= B_DONE; end
                 B_DONE: bst <= B_IDLE;
                 default: bst <= B_IDLE;
             endcase
