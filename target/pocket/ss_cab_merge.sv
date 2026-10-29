@@ -17,7 +17,8 @@
 //           0 one count per cycle, 1 one per two cycles, 2 two per cycle.
 //           WHEEL_Q8 is the counts per cycle in Q8 (256 = one): the Super Sprint's own
 //           disc gives N cycles a turn, so WHEEL_Q8 = round(256 x 103 / N) makes it turn the
-//           LETA as the Pole Position wheel does. The default, 256, is the 1:1 of before.
+//           LETA as the Pole Position wheel does. The default is for N = 30 (the estimate
+//           from the photo: count the teeth on the real disc); 256 is the 1:1 of before.
 //   pedal   0..0x90 (the cabinet's travel) is 0..0x3f, 7/16 -- exactly the
 //           Sprints' 0xff .. 0xc0 and APB's 0x3f .. 0x00 once subtracted.
 //   coin 1, coin 2, start, test    closed (active high here)
@@ -30,7 +31,7 @@
 `default_nettype none
 
 module ss_cab_merge #(
-    parameter WHEEL_Q8 = 256        // counts per cycle, Q8 (see the header)
+    parameter WHEEL_Q8 = 879        // counts per cycle, Q8: 256 x 103 / N with N = 30 (see the header)
 ) (
     input  wire        clk,
     input  wire        reset,

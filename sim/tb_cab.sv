@@ -46,7 +46,7 @@ module tb_cab;
     logic [1:0] gain = 0; logic rev = 0;
     wire live = enable && present;
     wire [7:0] wheel, ped_s, ped_a; wire c1, c2, st, tst, hig;
-    ss_cab_merge m (.clk(clk), .reset(reset), .live(live), .cab_lines(lines), .cab_gas(gas), .gain(gain), .rev(rev),
+    ss_cab_merge #(.WHEEL_Q8(256)) m (.clk(clk), .reset(reset), .live(live), .cab_lines(lines), .cab_gas(gas), .gain(gain), .rev(rev),
                     .wheel(wheel), .pedal_sprint(ped_s), .pedal_apb(ped_a),
                     .coin1(c1), .coin2(c2), .start(st), .test(tst), .hi_gear(hig));
 
