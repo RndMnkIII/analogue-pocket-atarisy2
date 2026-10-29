@@ -31,7 +31,7 @@
 `default_nettype none
 
 module ss_cab_merge #(
-    parameter WHEEL_Q8 = 879        // counts per cycle, Q8: 256 x 103 / N with N = 30 (see the header)
+    parameter WHEEL_Q8 = 256        // counts per cycle, Q8: 256 = 1:1 (the previous behaviour); 879 = 256 x 103 / 30 turned the car too fast
 ) (
     input  wire        clk,
     input  wire        reset,
