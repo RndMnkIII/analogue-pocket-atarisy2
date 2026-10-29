@@ -15,6 +15,9 @@
 //           fall of ST2, up with ST1 low (the 53xx's own rule, vwheel.h).
 //           Turning right counts up, as steer_wheel.sv (`rev` flips it).  `gain` scales it:
 //           0 one count per cycle, 1 one per two cycles, 2 two per cycle.
+//           WHEEL_Q8 is the counts per cycle in Q8 (256 = one): the Super Sprint's own
+//           disc gives N cycles a turn, so WHEEL_Q8 = round(256 x 103 / N) makes it turn the
+//           LETA as the Pole Position wheel does. The default, 256, is the 1:1 of before.
 //   pedal   0..0x90 (the cabinet's travel) is 0..0x3f, 7/16 -- exactly the
 //           Sprints' 0xff .. 0xc0 and APB's 0x3f .. 0x00 once subtracted.
 //   coin 1, coin 2, start, test    closed (active high here)
@@ -26,7 +29,9 @@
 //------------------------------------------------------------------------------
 `default_nettype none
 
-module ss_cab_merge (
+module ss_cab_merge #(
+    parameter WHEEL_Q8 = 256        // counts per cycle, Q8 (see the header)
+) (
     input  wire        clk,
     input  wire        reset,
     input  wire        live,
@@ -44,26 +49,24 @@ module ss_cab_merge (
 );
     // ---- the wheel
     logic st2_q = 1'b1;
-    logic signed [2:0] acc = '0;     // half-count remainder for gain 1
     wire up = !cab_lines[0] ^ rev;   // ST1 low when ST2 falls: counts up (rev: down)
+    // counts per cycle in Q8: the ratio, halved for gain 1 and doubled for gain 2. The fraction left
+    // over (0..255, in 1/256 of a count) is carried to the next cycle, signed by the direction, so a
+    // turn back takes back what a half count gave.
+    wire [15:0] fac = (gain == 2'd1) ? (WHEEL_Q8 >> 1) : (gain == 2'd2) ? (WHEEL_Q8 << 1) : WHEEL_Q8;
+    logic [7:0] wfrac = '0;
+    wire signed [16:0] wdlt = up ? $signed({1'b0, fac}) : -$signed({1'b0, fac});
+    wire signed [16:0] wsum = $signed({9'd0, wfrac}) + wdlt;
+    /* verilator lint_off UNUSEDSIGNAL */   // the top bits: the count is 8 bits
+    wire signed [16:0] wcnt = wsum >>> 8;           // whole counts this cycle (floor)
+    /* verilator lint_on UNUSEDSIGNAL */
     always_ff @(posedge clk) begin
         st2_q <= cab_lines[1];
         if (reset || !live) begin
-            acc <= '0;
+            wfrac <= '0;
         end else if (st2_q && !cab_lines[1]) begin     // ST2 fell: one cycle
-            case (gain)
-                2'd1: begin                              // one count per two cycles in the same direction
-                    if (up) begin
-                        if (acc >= 3'sd1) begin wheel <= wheel + 8'd1; acc <= acc - 3'sd1; end
-                        else acc <= acc + 3'sd1;
-                    end else begin
-                        if (acc <= -3'sd1) begin wheel <= wheel - 8'd1; acc <= acc + 3'sd1; end
-                        else acc <= acc - 3'sd1;
-                    end
-                end
-                2'd2:    wheel <= up ? wheel + 8'd2 : wheel - 8'd2;
-                default: wheel <= up ? wheel + 8'd1 : wheel - 8'd1;
-            endcase
+            wfrac <= wsum[7:0];
+            wheel <= wheel + wcnt[7:0];
         end
         if (reset) wheel <= 8'h00;
     end
