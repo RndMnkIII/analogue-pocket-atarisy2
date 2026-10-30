@@ -676,6 +676,7 @@ module core_top
             32'hF2000000: begin bridge_rd_data <= int_bridge_rd_data;   end // Modifiers
             32'hF3000000: begin bridge_rd_data <= int_bridge_rd_data;   end // A/V Filters
             32'hF4000000: begin bridge_rd_data <= int_bridge_rd_data;   end // Extra DIP Switches
+            32'hF5000000: begin bridge_rd_data <= int_bridge_rd_data;   end // Wheel Ratio (cabinet steering, menu)
             32'hF7xxxxxx: begin bridge_rd_data <= ana_bridge_rd_data;   end // Analogizer settings (menu)
             32'hF8xxxxxx: begin bridge_rd_data <= cmd_bridge_rd_data;   end // APF Bridge (Reserved)
             32'hFA000000: begin bridge_rd_data <= int_bridge_rd_data;   end // Status Low  [31:0]
@@ -1012,13 +1013,13 @@ module core_top
         .err_count(cab_err));
     wire        cab_live = cab_sel && cab_present;
     wire  [7:0] cab_wheel, cab_ped_sprint, cab_ped_apb;
-    //! Wheel Ratio (menu, bridge 0xF7000010): a signed percentage, 0 = 100%, -75..+300 = 25%..400%
+    //! Wheel Ratio (menu, bridge 0xF5000000): a signed percentage, 0 = 100%, -75..+300 = 25%..400%
     //! of the wheel's counts a cycle. Q8 = pct x 2.5625 (41/16): 256 is 1:1, the value the adapter's
     //! 1:1 default gives. The Super Sprint disc gives N cycles a turn; the ratio that makes it turn like
     //! Pole Position is 103 / N, and the slider sets it by eye.
     reg  [9:0] wratio_74 = 10'd0;
     always @(posedge clk_74a)
-        if (bridge_wr && bridge_addr == 32'hF7000010) wratio_74 <= bridge_wr_data[9:0];
+        if (bridge_wr && bridge_addr == 32'hF5000000) wratio_74 <= bridge_wr_data[9:0];
     wire [9:0] wratio_s;
     synch_3 #(.WIDTH(10)) sync_wratio(wratio_74, wratio_s, clk_sys);
     wire [9:0]  wratio_pct = 10'd100 + wratio_s;        // 25..400 (modulo 1024 gives it for -75..+300)
